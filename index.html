@@ -1,0 +1,2300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Underneath</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Every M4.5+ earthquake of the past year on a 3D globe, sliced open to the core, with real seismograms.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: full-bleed globe over cooling-lava dark; soft rounded field-station panels float at the edges, magma readouts. */
+:root {
+  color-scheme: dark;
+  --ground: #120a07;
+  --ground-hi: #2a160d;
+  --panel: rgba(34, 20, 13, 0.80);
+  --panel-solid: #23150e;
+  --panel-raise: rgba(58, 34, 21, 0.70);
+  --line: rgba(255, 200, 158, 0.12);
+  --line-strong: rgba(255, 200, 158, 0.26);
+  --ink: #fff2e6;
+  --ink-2: #e3c6ad;
+  --ink-3: #ab8c77;
+  --magma: #ff7b2e;
+  --magma-soft: rgba(255, 123, 46, 0.17);
+  --magma-ink: #2b1205;
+  --gold: #ffc451;
+  --ember: #ff5a3c;
+  --ash: #e6d2bf;
+  /* chart phase colours (validated on the panel surface); glow tints for the animated slice */
+  --p: #c4851c;
+  --s: #e24a6c;
+  --surf: #2f9ac4;
+  --p-glow: #ffc451;
+  --s-glow: #ff7090;
+  --surf-glow: #72cff0;
+  --alert-green: #6fcf7c;
+  --alert-yellow: #ffd23f;
+  --alert-orange: #ff8c1a;
+  --alert-red: #ff4b4b;
+  --font-display: "Fredoka", "Nunito", "Varela Round", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "Nunito", "Varela Round", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 18px;
+  --r-sm: 11px;
+  --gut-l: max(16px, env(safe-area-inset-left, 0px));
+  --gut-r: max(16px, env(safe-area-inset-right, 0px));
+  --top-h: 64px;
+  --bottom-h: 170px;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.4;
+  background: radial-gradient(120% 90% at 50% 46%, var(--ground-hi) 0%, #1a0d08 38%, var(--ground) 70%);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+a { color: var(--gold); }
+h1, h2, h3, h4 { text-wrap: balance; }
+
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+
+/* ---------- shared bits ---------- */
+.panel {
+  position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+.eyebrow { font-family: var(--font-display); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 16px; letter-spacing: 0.01em; color: var(--ink); }
+.note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-3); }
+.note b { color: var(--ink-2); font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+.btn {
+  height: 36px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel-raise);
+  color: var(--ink); display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 700; font-size: 13.5px;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.btn:hover { border-color: rgba(255, 160, 100, 0.6); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 15px; height: 15px; flex: none; }
+.btn.primary { background: linear-gradient(180deg, #ff9445, var(--magma)); color: var(--magma-ink); border-color: transparent; box-shadow: 0 4px 18px rgba(255, 110, 40, 0.35); }
+.btn.primary:hover { background: linear-gradient(180deg, #ffa25c, #ff8a3d); }
+.btn.icon { width: 36px; padding: 0; justify-content: center; }
+.btn[aria-pressed="true"] { border-color: var(--magma); color: var(--gold); background: var(--magma-soft); }
+.btn.small { height: 30px; padding: 0 12px; font-size: 12.5px; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: rgba(20, 11, 7, 0.75); border: 1px solid var(--line-strong); }
+.seg button { border: 0; background: transparent; height: 30px; padding: 0 13px; border-radius: 999px; color: var(--ink-2); font-weight: 700; font-size: 13px; white-space: nowrap; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--magma); color: var(--magma-ink); }
+.xbtn { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); display: grid; place-items: center; flex: none; }
+.xbtn:hover { color: var(--ink); border-color: var(--line-strong); }
+.xbtn svg { width: 12px; height: 12px; }
+.magchip { font-weight: 800; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.magchip.m6 { background: rgba(255, 196, 81, 0.18); color: var(--gold); }
+.magchip.m7 { background: rgba(255, 123, 46, 0.24); color: #ffb27a; }
+.magchip.m8 { background: rgba(255, 90, 60, 0.30); color: #ffc2b2; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.panel, .sheet, .list, .results, #card .cbody { scrollbar-width: thin; scrollbar-color: rgba(255, 190, 140, 0.3) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 190, 140, 0.25); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--gut-r) 12px var(--gut-l);
+  background: linear-gradient(to bottom, rgba(18, 10, 7, 0.9), rgba(18, 10, 7, 0.5) 70%, rgba(18, 10, 7, 0));
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.brand { display: flex; align-items: center; gap: 12px; margin-right: 4px; }
+.brand b { font-family: var(--font-display); font-weight: 600; font-size: 25px; letter-spacing: 0.01em; line-height: 1; color: var(--ink); }
+.brand b i { font-style: normal; color: var(--magma); display: inline-block; transform: translateY(0.16em); }
+.asof { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.asof b { color: var(--ink-2); font-weight: 700; }
+.spacer { flex: 1 1 0; min-width: 0; }
+.search { position: relative; width: min(280px, 100%); }
+.search input { width: 100%; height: 36px; padding: 0 14px 0 36px; border-radius: 999px; background: rgba(20, 11, 7, 0.8); border: 1px solid var(--line-strong); }
+.search input::placeholder { color: var(--ink-3); }
+.search svg { position: absolute; left: 13px; top: 11px; width: 14px; height: 14px; color: var(--ink-3); }
+.results { position: absolute; top: 42px; left: 0; right: 0; list-style: none; margin: 0; padding: 5px; background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 14px; max-height: 360px; overflow-y: auto; z-index: 30; }
+.results li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; }
+.results li[aria-selected="true"], .results li:hover { background: rgba(255, 255, 255, 0.06); }
+.results .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .nm small { color: var(--ink-3); margin-left: 6px; }
+
+/* ---------- filters (left) ---------- */
+#filters { left: var(--gut-l); top: calc(var(--top-h) + 8px); width: 250px; padding: 14px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100% - var(--top-h) - var(--bottom-h) - 26px); overflow-y: auto; }
+#filters .head { display: flex; align-items: center; gap: 8px; }
+#filters .head .h2 { flex: 1; }
+#filters.collapsed .fbody { display: none; }
+#filters.collapsed .head .xbtn svg { transform: rotate(180deg); }
+.fbody { display: flex; flex-direction: column; gap: 16px; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.group > .eyebrow { display: flex; justify-content: space-between; }
+.group > .eyebrow span { color: var(--ink-2); letter-spacing: 0; text-transform: none; font-family: var(--font-body); font-weight: 800; font-size: 12.5px; }
+input[type=range] { width: 100%; accent-color: var(--magma); }
+.toggles { display: flex; flex-direction: column; gap: 2px; }
+.tg { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 10px; border: 0; background: transparent; text-align: left; color: var(--ink); font-weight: 600; }
+.tg:hover { background: rgba(255, 255, 255, 0.05); }
+.tg .sw { width: 14px; height: 14px; border-radius: 5px; border: 2px solid currentColor; display: grid; place-items: center; }
+.tg .sw::after { content: ""; width: 6px; height: 6px; border-radius: 2px; background: currentColor; }
+.tg .n { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tg .line { width: 16px; height: 3px; border-radius: 2px; }
+.tg[aria-pressed="false"] { color: var(--ink-3); }
+.tg[aria-pressed="false"] .sw { color: var(--ink-3) !important; }
+.tg[aria-pressed="false"] .sw::after { background: transparent; }
+.tg[aria-pressed="false"] .n { color: var(--ink-3); }
+.legend-lines { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 0 35px; }
+.legend-lines div { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+.legend-lines i { width: 18px; height: 0; border-top: 2px solid; display: inline-block; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.chips button:hover { border-color: var(--magma); color: var(--gold); }
+.depthkey { display: flex; flex-direction: column; gap: 5px; }
+.depthkey .bar { height: 9px; border-radius: 999px; }
+.depthkey .lbls { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- right list ---------- */
+#side { right: var(--gut-r); top: calc(var(--top-h) + 8px); width: 330px; max-height: calc(100% - var(--top-h) - var(--bottom-h) - 26px); display: flex; flex-direction: column; }
+#side header { padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+#side header .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.list li button { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 9px 10px; border: 0; background: transparent; border-radius: 12px; text-align: left; }
+.list li button:hover, .list li button[aria-current="true"] { background: rgba(255, 255, 255, 0.06); }
+.list .pl { min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .meta { grid-column: 1 / -1; display: flex; gap: 10px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.list .meta .wv { color: var(--gold); }
+.empty { padding: 18px 14px; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+
+/* ---------- bottom stats ---------- */
+#bottom { left: var(--gut-l); right: var(--gut-r); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: minmax(250px, 1.25fr) minmax(240px, 1.3fr) minmax(220px, 1.1fr) minmax(200px, 1fr); }
+#bottom > section { padding: 13px 16px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+#bottom > section + section { border-left: 1px solid var(--line); }
+.sechead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.sechead small { font-size: 11.5px; color: var(--ink-3); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
+.tile b { display: block; font-weight: 800; font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tile span { font-size: 12px; color: var(--ink-3); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile.hot b { color: var(--gold); }
+.minichart { width: 100%; height: 96px; display: block; }
+.collapse-btn { position: absolute; top: -14px; right: 16px; height: 26px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel-solid); color: var(--ink-2); font-size: 12px; font-weight: 700; }
+.collapse-btn:hover { color: var(--ink); }
+#bottom.collapsed { grid-template-columns: 1fr; }
+#bottom.collapsed > section:not(:first-of-type) { display: none; }
+#bottom.collapsed .tiles { grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px 28px; }
+#bottom.collapsed .tile b { font-size: 17px; }
+#bottom.collapsed .sechead { display: none; }
+
+/* ---------- quake / volcano card ---------- */
+#card { position: absolute; width: 350px; max-width: calc(100vw - 32px); background: rgba(34, 20, 13, 0.93); border: 1px solid var(--line-strong); border-radius: 20px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; max-height: calc(100% - 100px); left: 0; top: 0; will-change: transform; z-index: 20; }
+#card .ctop { padding: 14px 16px 12px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; border-bottom: 1px solid var(--line); }
+#card .chip { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+#card h3 { grid-column: 1 / -1; margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 24px; line-height: 1.12; }
+#card .sub { grid-column: 1 / -1; font-size: 13px; color: var(--ink-2); }
+#card .cbody { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 0; }
+.facts div { min-width: 0; }
+.facts dt { font-size: 11.5px; color: var(--ink-3); }
+.facts dd { margin: 2px 0 0; font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; }
+.facts dd small { font-weight: 600; color: var(--ink-3); font-size: 12px; }
+.pager { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.cactions { display: flex; flex-wrap: wrap; gap: 8px; }
+.waveflag { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: flex-start; line-height: 1.45; }
+.waveflag svg { flex: none; width: 15px; height: 15px; color: var(--gold); margin-top: 1px; }
+#tip { position: absolute; pointer-events: none !important; z-index: 25; padding: 6px 10px; border-radius: 10px; background: rgba(28, 16, 10, 0.94); border: 1px solid var(--line-strong); font-size: 12.5px; white-space: nowrap; color: var(--ink); transform: translate(-50%, calc(-100% - 12px)); }
+#tip small { color: var(--ink-3); }
+
+/* ---------- intro ---------- */
+#intro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: calc(9vh + env(safe-area-inset-top, 0px)) var(--gut-r) calc(28px + env(safe-area-inset-bottom, 0px)) var(--gut-l); pointer-events: auto; cursor: pointer; text-align: center; gap: 10px; background: linear-gradient(to bottom, rgba(18, 10, 7, 0.55), rgba(18, 10, 7, 0) 40%); z-index: 40; transition: opacity .6s ease; }
+#intro.gone { opacity: 0; pointer-events: none; }
+#intro h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(44px, 8vw, 92px); line-height: 0.95; letter-spacing: 0.005em; }
+#intro h1 i { font-style: normal; color: var(--magma); display: inline-block; transform: translateY(0.18em); }
+#intro p { margin: 6px 0 0; max-width: 34em; font-size: clamp(15px, 1.6vw, 18px); color: var(--ink-2); }
+#intro .ctr { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#intro .ctr b { font-weight: 800; font-size: clamp(26px, 3.4vw, 38px); font-variant-numeric: tabular-nums; color: var(--gold); }
+#intro .ctr span { font-size: 13px; color: var(--ink-3); }
+#intro .skip { margin-top: 10px; }
+
+/* ---------- replay ---------- */
+#replay { left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: min(980px, calc(100vw - 32px)); padding: 14px 16px; display: grid; grid-template-columns: minmax(180px, 230px) 1fr; gap: 10px 20px; }
+#replay .rleft { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#replay .rdate { font-family: var(--font-display); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+#replay .rstats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+#replay .rstats b { display: block; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; color: var(--gold); }
+#replay .rstats span { font-size: 11.5px; color: var(--ink-3); }
+#replay .rctl { display: flex; gap: 8px; flex-wrap: wrap; }
+#replay .rright { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#energyCanvas { width: 100%; height: 132px; display: block; cursor: pointer; }
+#replay .rnote { font-size: 12px; color: var(--ink-3); }
+.callout { position: absolute; pointer-events: auto; transform: translate(-50%, calc(-100% - 16px)); padding: 7px 12px; border-radius: 12px; background: rgba(34, 20, 13, 0.94); border: 1px solid var(--magma); color: var(--ink); font-size: 13px; white-space: nowrap; box-shadow: 0 6px 24px rgba(255, 100, 40, 0.3); transition: opacity .35s; z-index: 22; cursor: pointer; }
+.callout b { color: var(--gold); }
+.callout small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.callout::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; transform: translateX(-50%) rotate(45deg); background: inherit; border-right: 1px solid var(--magma); border-bottom: 1px solid var(--magma); }
+
+/* ---------- wave race ---------- */
+#waveHud { left: var(--gut-l); top: calc(var(--top-h) + 8px); width: min(390px, calc(100vw - 32px)); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+#waveHud h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.15; }
+#waveHud .clock { display: flex; align-items: baseline; gap: 10px; }
+#waveHud .clock b { font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--gold); }
+#waveHud .clock span { font-size: 13px; color: var(--ink-3); }
+#waveSentence { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); min-height: 4.5em; }
+#waveSentence em { font-style: normal; font-weight: 800; }
+.phasekey { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); }
+.phasekey span { display: inline-flex; align-items: center; gap: 6px; }
+.phasekey i { width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; display: inline-block; }
+#waveHud .wctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#record { right: var(--gut-r); top: calc(var(--top-h) + 8px); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: clamp(380px, 36vw, 540px); padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 6px; }
+#record .sechead .h2 { font-size: 15px; }
+#recordCanvas { width: 100%; flex: 1 1 auto; min-height: 160px; display: block; cursor: crosshair; touch-action: none; }
+#record .rfoot { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+#record .rfoot label { display: inline-flex; align-items: center; gap: 8px; }
+#record .rfoot input[type=range] { width: 110px; }
+#scrub { width: 100%; }
+#turn { left: 50%; transform: translateX(-50%); bottom: calc(var(--bottom-h) + 30px + env(safe-area-inset-bottom, 0px)); padding: 7px 8px 7px 14px; display: flex; align-items: center; gap: 10px; border-radius: 999px; font-size: 12.5px; color: var(--ink-2); }
+#turn input { width: 150px; }
+
+/* ---------- about sheet ---------- */
+.sheet { position: absolute; inset: auto 0 0 auto; right: var(--gut-r); top: calc(var(--top-h) + 8px); width: min(460px, calc(100vw - 32px)); max-height: calc(100% - var(--top-h) - 30px); overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; z-index: 30; }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 22px; }
+.sheet h3 { margin: 6px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--gold); }
+.sheet p, .sheet li { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); max-width: 65ch; }
+.sheet ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- loading ---------- */
+#loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 60; background: var(--ground); transition: opacity .5s; }
+#loading.gone { opacity: 0; pointer-events: none; }
+#loading .lw { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 0 var(--gut-r) 0 var(--gut-l); }
+#loading b { font-family: var(--font-display); font-weight: 600; font-size: 40px; }
+#loading b i { font-style: normal; color: var(--magma); display: inline-block; transform: translateY(0.16em); }
+#loading .prog { width: 220px; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+#loading .prog div { height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), var(--magma)); border-radius: 999px; transition: width .2s; }
+#loading span { color: var(--ink-3); font-size: 13px; }
+
+/* ---------- mode switches ---------- */
+#ui.m-intro > :not(#intro):not(.topbar) { display: none !important; }
+#ui.m-intro .topbar { opacity: 0; pointer-events: none; }
+#ui.m-replay #filters, #ui.m-replay #side, #ui.m-replay #bottom, #ui.m-replay #card { display: none !important; }
+#ui.m-wave #filters, #ui.m-wave #side, #ui.m-wave #bottom, #ui.m-wave #card, #ui.m-wave #replay { display: none !important; }
+#ui:not(.m-wave) #waveHud, #ui:not(.m-wave) #record { display: none !important; }
+#ui:not(.m-replay) #replay { display: none !important; }
+#ui:not(.m-slice):not(.m-wave) #turn { display: none !important; }
+#ui.m-wave #turn { left: var(--gut-l); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: none; }
+[hidden] { display: none !important; }
+.mobile-only { display: none !important; }
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 1180px) {
+  #bottom { grid-template-columns: minmax(230px, 1.2fr) minmax(220px, 1.3fr) minmax(200px, 1fr); }
+  #bottom > section:nth-of-type(4) { display: none; }
+}
+@media (max-width: 900px) {
+  :root { --bottom-h: 92px; }
+  .desk-only { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+  .brand b { font-size: 22px; }
+  .topbar { gap: 8px; }
+  .search { order: 10; width: 100%; }
+  #filters, #side { top: auto; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: var(--gut-l); right: var(--gut-r); width: auto; max-height: 58%; z-index: 26; }
+  #filters:not(.open), #side:not(.open) { display: none; }
+  #filters .head .xbtn.desk { display: none; }
+  #bottom { grid-template-columns: 1fr; }
+  #bottom > section:not(:first-of-type) { display: none; }
+  #bottom .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+  #bottom .tile b { font-size: 16px; }
+  #bottom .sechead { display: none; }
+  .collapse-btn { display: none; }
+  #card { left: var(--gut-l) !important; right: var(--gut-r); top: auto !important; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: none !important; width: auto; max-height: 62%; }
+  #replay { grid-template-columns: 1fr; padding: 12px; }
+  #replay .rstats { grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px 16px; }
+  #energyCanvas { height: 96px; }
+  #waveHud { padding: 12px 14px; gap: 8px; }
+  #waveHud h2 { font-size: 17px; }
+  #waveHud .clock b { font-size: 24px; }
+  #waveSentence { font-size: 13px; min-height: 0; }
+  #record { left: var(--gut-l); right: var(--gut-r); width: auto; top: auto; }
+  #recordCanvas { height: 180px; flex: none; }
+  #turn { bottom: calc(var(--bottom-h) + 26px + env(safe-area-inset-bottom, 0px)); }
+  #ui.m-wave #turn { display: none !important; }
+  #waveHud .phasekey { display: none; }
+  .sheet { left: var(--gut-l); right: var(--gut-r); width: auto; }
+}
+@media (max-width: 520px) {
+  .asof { display: none; }
+  .seg button { padding: 0 10px; font-size: 12.5px; }
+  #waveHud .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* ---------- small overlays ---------- */
+.speedtag { position: absolute; left: 0; top: 0; pointer-events: none !important; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: rgba(34, 20, 13, 0.82); color: var(--gold); border: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.speedtag span { color: var(--ink-2); font-weight: 700; }
+.speedtag small { color: var(--ink-3); font-weight: 600; }
+#toast { left: 50%; bottom: calc(var(--bottom-h) + 36px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); padding: 11px 18px; width: max-content; max-width: min(560px, calc(100vw - 32px)); font-size: 14px; text-align: center; color: var(--ink); opacity: 0; transition: opacity .4s; pointer-events: none !important; z-index: 24; }
+#toast.on { opacity: 1; }
+#ui.m-wave #toast, #ui.m-replay #toast { display: none !important; }
+@media (max-width: 900px) {
+  #ui.m-wave .topbar > :not(.brand):not(#aboutBtn), #ui.m-replay .topbar > :not(.brand):not(#aboutBtn) { display: none !important; }
+  #toast { bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+}
+.tile { min-width: 0; }
+.caplabel { position: absolute; left: 0; top: 0; pointer-events: none !important; white-space: nowrap; z-index: 3; font-weight: 800; }
+.caplabel.lay { font-size: 12.5px; color: rgba(255, 244, 230, 0.82); text-shadow: 0 1px 6px rgba(40, 14, 4, 0.8); }
+.caplabel.dep { font-size: 11.5px; color: rgba(255, 236, 214, 0.75); font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(40, 14, 4, 0.9); }
+
+.btn .short { display: none; }
+@media (max-width: 900px) {
+  #side header .search { order: 0; width: 100%; }
+  #ui.m-wave #waveEyebrow, #ui.m-wave .phasekey, #ui.m-wave #wSpeed, #record .rfoot #recNote { display: none !important; }
+  #waveHud .wctl .btn { height: 30px; }
+  #recordCanvas { height: 150px; }
+  #ui.m-wave .caplabel.lay { display: none !important; }
+}
+@media (max-width: 520px) {
+  .topbar { row-gap: 8px; column-gap: 6px; }
+  #filtersToggle, #sideToggle { padding: 0 12px; }
+  .brand b { font-size: 20px; }
+  .seg button { padding: 0 9px; }
+  #replayBtn .full { display: none; }
+  #replayBtn .short { display: inline; }
+  #sliceBtn .lbl { display: none; }
+  #sliceBtn { width: 36px; padding: 0; justify-content: center; }
+  #aboutBtn { order: 5; }
+}
+.chips.one-line { flex-wrap: nowrap; overflow-x: auto; align-items: center; scrollbar-width: none; }
+.chips.one-line::-webkit-scrollbar { display: none; }
+.chips.one-line button { white-space: nowrap; flex: none; }
+.chips.one-line .note { white-space: nowrap; flex: none; font-size: 12px; }
+
+</style>
+<div id="stage"></div>
+
+<div id="ui" class="m-intro">
+  <div class="topbar" id="topbar">
+    <div class="brand"><b>Under<i>neath</i></b></div>
+    <div class="asof desk-only" id="asof">Loading data…</div>
+    <div class="seg" id="viewSeg" role="group" aria-label="Time window">
+      <button type="button" data-view="week" aria-pressed="false">Week</button>
+      <button type="button" data-view="month" aria-pressed="false">Month</button>
+      <button type="button" data-view="year" aria-pressed="true">Year</button>
+      <button type="button" data-view="giants" aria-pressed="false" title="Every M8.5+ quake since 1900">Giants</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="search" id="searchWrap">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+      <input id="search" type="search" placeholder="Search places, volcanoes" autocomplete="off" aria-label="Search quakes and volcanoes">
+      <ul class="results" id="results" role="listbox" hidden></ul>
+    </div>
+    <button type="button" class="btn primary" id="replayBtn">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+      <span class="full">Year in 30 seconds</span><span class="short">Year in 30s</span>
+    </button>
+    <button type="button" class="btn" id="sliceBtn" aria-pressed="false" title="Cut the Earth in half to see how deep the quakes are">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2v12" /><path d="M8 2a6 6 0 0 1 0 12" fill="currentColor" stroke="none" opacity=".5"/></svg>
+      <span class="lbl">Slice</span>
+    </button>
+    <button type="button" class="btn mobile-only" id="filtersToggle" aria-pressed="false">Filters</button>
+    <button type="button" class="btn mobile-only" id="sideToggle" aria-pressed="false">List</button>
+    <button type="button" class="btn icon" id="aboutBtn" aria-label="About the data" title="About the data">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.2v4"/><circle cx="8" cy="4.9" r=".6" fill="currentColor"/></svg>
+    </button>
+  </div>
+
+  <aside class="panel" id="filters" aria-label="Filters">
+    <div class="head">
+      <h2 class="h2">Showing</h2>
+      <span class="note num" id="shownCount">0</span>
+      <button type="button" class="xbtn desk" id="filtersCollapse" aria-label="Collapse filters" title="Collapse">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 7.5L6 4l3.5 3.5"/></svg>
+      </button>
+      <button type="button" class="xbtn mobile-only" id="filtersClose" aria-label="Close filters">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="fbody">
+      <div class="group">
+        <label class="eyebrow" for="magMin">Magnitude <span id="magVal">4.5 and up</span></label>
+        <input type="range" id="magMin" min="4.5" max="8.5" step="0.1" value="4.5">
+      </div>
+      <div class="group">
+        <div class="eyebrow">Depth</div>
+        <div class="toggles" id="depthToggles">
+          <button type="button" class="tg" data-band="0" aria-pressed="true"><span class="sw" style="color:#ffd27a"></span><span>Shallow <small class="note">0–70 km</small></span><span class="n" id="dn0">0</span></button>
+          <button type="button" class="tg" data-band="1" aria-pressed="true"><span class="sw" style="color:#ff6a3d"></span><span>Intermediate <small class="note">70–300 km</small></span><span class="n" id="dn1">0</span></button>
+          <button type="button" class="tg" data-band="2" aria-pressed="true"><span class="sw" style="color:#c04aa6"></span><span>Deep <small class="note">300–700 km</small></span><span class="n" id="dn2">0</span></button>
+        </div>
+        <div class="depthkey" aria-hidden="true">
+          <div class="bar" id="depthBar"></div>
+          <div class="lbls"><span>0 km</span><span>100</span><span>300</span><span>700 km</span></div>
+        </div>
+      </div>
+      <div class="group">
+        <div class="eyebrow">Layers</div>
+        <div class="toggles">
+          <button type="button" class="tg" id="tgPlates" aria-pressed="true"><span class="sw" style="color:#e6d2bf"></span><span>Plate boundaries</span><span class="n" id="plateN"></span></button>
+          <div class="legend-lines" id="plateLegend">
+            <div><i style="border-color:#f1dcc6"></i>Colliding</div>
+            <div><i style="border-color:#bfa996; border-top-style:dashed"></i>Spreading</div>
+            <div><i style="border-color:#9e8c7d; border-top-style:dotted"></i>Sliding past</div>
+          </div>
+          <button type="button" class="tg" id="tgSpeeds" aria-pressed="false"><span class="sw" style="color:#ffc451"></span><span>Plate speeds</span><span class="n">mm/yr</span></button>
+          <button type="button" class="tg" id="tgVolc" aria-pressed="true"><span class="sw" style="color:#f2b06a"></span><span>Volcanoes</span><span class="n" id="volcN">0</span></button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="eyebrow">Jump to</div>
+        <div class="chips" id="famous"></div>
+      </div>
+      <p class="note">Size shows magnitude, colour shows depth, and brighter dots are more recent. Click any dot for details.</p>
+    </div>
+  </aside>
+
+  <aside class="panel" id="side" aria-label="Quake list">
+    <header>
+      <div class="row">
+        <h2 class="h2" id="sideTitle">Big quakes</h2>
+        <button type="button" class="xbtn mobile-only" id="sideClose" aria-label="Close list">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="seg" id="listSeg" role="group" aria-label="Sort">
+        <button type="button" data-sort="latest" aria-pressed="true">Latest</button>
+        <button type="button" data-sort="biggest" aria-pressed="false">Biggest</button>
+      </div>
+    </header>
+    <ul class="list" id="list"></ul>
+  </aside>
+
+  <div class="panel" id="bottom">
+    <button type="button" class="collapse-btn" id="collapseBtn">Hide stats</button>
+    <section>
+      <div class="sechead"><h2 class="h2" id="statTitle">Past year</h2><small id="statRange"></small></div>
+      <div class="tiles">
+        <div class="tile hot"><b id="stCount">0</b><span>quakes M4.5+</span></div>
+        <div class="tile"><b id="stBig">–</b><span id="stBigWhere">biggest</span></div>
+        <div class="tile"><b id="stDeep">–</b><span id="stDeepWhere">deepest</span></div>
+        <div class="tile"><b id="stEnergy">–</b><span>energy released</span></div>
+      </div>
+    </section>
+    <section>
+      <div class="sechead"><h2 class="h2">By magnitude</h2><small id="magNote">log scale</small></div>
+      <canvas class="minichart" id="magCanvas" aria-label="Number of quakes by magnitude"></canvas>
+    </section>
+    <section>
+      <div class="sechead"><h2 class="h2">By depth</h2><small>km below the surface</small></div>
+      <canvas class="minichart" id="depthCanvas" aria-label="Number of quakes by depth"></canvas>
+    </section>
+    <section>
+      <div class="sechead"><h2 class="h2">Share of the energy</h2><small>biggest quakes</small></div>
+      <canvas class="minichart" id="shareCanvas" aria-label="Share of seismic energy released by the biggest quakes"></canvas>
+    </section>
+  </div>
+
+  <div id="card" hidden></div>
+  <div id="tip" hidden></div>
+  <div id="callouts"></div>
+
+  <div class="panel" id="turn">
+    <label for="turnRange">Turn the slice</label>
+    <input type="range" id="turnRange" min="-180" max="180" step="1" value="0">
+    <button type="button" class="btn small" id="sliceExit">Close slice</button>
+  </div>
+
+  <div id="intro" role="dialog" aria-label="Opening animation">
+    <h1>Under<i>neath</i></h1>
+    <p>Every magnitude 4.5+ earthquake of the past year, in eight seconds. Watch where they land.</p>
+    <div class="ctr">
+      <b id="introCount">0</b>
+      <span id="introDate">quakes</span>
+      <button type="button" class="btn small skip" id="introSkip">Skip</button>
+    </div>
+  </div>
+
+  <div class="panel" id="replay" aria-label="Year in 30 seconds">
+    <div class="rleft">
+      <div class="eyebrow">Year in 30 seconds</div>
+      <div class="rdate" id="rDate">–</div>
+      <div class="rstats">
+        <div><b id="rCount">0</b><span>quakes so far</span></div>
+        <div><b id="rBig">–</b><span>biggest so far</span></div>
+        <div><b id="rEnergy">0</b><span>energy, TNT equivalent</span></div>
+        <div><b id="rShare">–</b><span>from the single biggest</span></div>
+      </div>
+      <div class="rctl">
+        <button type="button" class="btn small" id="rPlay" aria-label="Pause">Pause</button>
+        <button type="button" class="btn small" id="rRestart">Restart</button>
+        <button type="button" class="btn small" id="rClose">Done</button>
+      </div>
+    </div>
+    <div class="rright">
+      <div class="sechead"><h2 class="h2">Energy released, adding up</h2><small id="rEnergyNote">each step is one quake</small></div>
+      <canvas id="energyCanvas" aria-label="Cumulative seismic energy over the year. Click to jump."></canvas>
+      <div class="rnote" id="rNote">Thousands of small quakes barely move the line. A single big one makes it jump. Tap a big quake as it flashes to watch its waves.</div>
+    </div>
+  </div>
+
+  <div class="panel" id="waveHud" aria-live="polite">
+    <div class="eyebrow" id="waveEyebrow">Wave race</div>
+    <h2 id="waveTitle">–</h2>
+    <div class="clock"><b id="waveClock">0:00</b><span id="waveClockSub">minutes after the quake</span></div>
+    <p id="waveSentence"></p>
+    <div class="phasekey hide-sm">
+      <span><i style="border-color:var(--p-glow)"></i>P waves (push-pull)</span>
+      <span><i style="border-color:var(--s-glow)"></i>S waves (side to side)</span>
+      <span><i style="border-color:var(--surf-glow); border-top-style:dashed"></i>Surface waves</span>
+    </div>
+    <div class="wctl">
+      <button type="button" class="btn small primary" id="wPlay">Pause</button>
+      <button type="button" class="btn small" id="wRestart">Restart</button>
+      <div class="seg" id="wSpeed" role="group" aria-label="Speed">
+        <button type="button" data-speed="60" aria-pressed="false">1 min/s</button>
+        <button type="button" data-speed="120" aria-pressed="true">2 min/s</button>
+        <button type="button" data-speed="300" aria-pressed="false">5 min/s</button>
+      </div>
+      <button type="button" class="btn small" id="wExit">Back to globe</button>
+    </div>
+  </div>
+
+  <div class="panel" id="record" aria-label="Record section">
+    <div class="sechead"><h2 class="h2" id="recTitle">Real seismograms</h2><small id="recSub"></small></div>
+    <canvas id="recordCanvas"></canvas>
+    <input type="range" id="scrub" min="0" max="6000" step="1" value="0" aria-label="Minutes after the quake">
+    <div class="rfoot">
+      <span id="recNote">Each line is one seismometer, placed by its distance from the quake.</span>
+      <label for="gain">Boost small waves <input type="range" id="gain" min="0" max="1" step="0.01" value="0.6"></label>
+    </div>
+  </div>
+
+  <aside class="panel sheet" id="about" hidden aria-label="About the data">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+      <h2>Where this comes from</h2>
+      <button type="button" class="xbtn" id="aboutClose" aria-label="Close">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+      </button>
+    </div>
+    <div id="aboutBody"></div>
+  </aside>
+</div>
+
+<div id="loading">
+  <div class="lw">
+    <b>Under<i>neath</i></b>
+    <div class="prog"><div id="progBar"></div></div>
+    <span id="progText">Loading the planet…</span>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+
+/* =========================================================================
+   Underneath — earthquakes and the inside of the Earth
+   ========================================================================= */
+const $ = (id) => document.getElementById(id);
+const R_KM = 6371, KM_DEG = 111.195, SURF_V = 3.7, CIRC = 2 * Math.PI * R_KM, CMB = 3482, ICB = 1217.1;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const narrow = () => innerWidth <= 900;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const energyJ = (m) => Math.pow(10, 5.24 + 1.44 * m); // USGS: log E = 5.24 + 1.44 Mw (joules)
+const TNT_J = 4.184e9;
+
+function dirOf(lat, lon, out = new THREE.Vector3()) {
+  const la = lat * Math.PI / 180, lo = lon * Math.PI / 180;
+  return out.set(Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo));
+}
+function latLonOf(v) {
+  const n = v.clone().normalize();
+  return [Math.asin(clamp(n.y, -1, 1)) * 180 / Math.PI, Math.atan2(-n.z, n.x) * 180 / Math.PI];
+}
+const nf0 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const fmt = (n) => nf0.format(n);
+const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const dateShort = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const dateUTC = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const timeFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+const utcFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+function fmtTNT(j, long = false) {
+  const t = j / TNT_J;
+  if (t >= 1e9) return long ? `${nf1.format(t / 1e9)} billion tons of TNT` : `${nf1.format(t / 1e9)} Gt`;
+  if (t >= 1e6) return long ? `${nf1.format(t / 1e6)} million tons of TNT` : `${nf1.format(t / 1e6)} Mt`;
+  if (t >= 1e3) return long ? `${fmt(t / 1e3)} thousand tons of TNT` : `${fmt(t / 1e3)} kt`;
+  return long ? `${fmt(t)} tons of TNT` : `${fmt(t)} t`;
+}
+function ago(ms, now) {
+  const s = (now - ms) / 1000;
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  if (s < 86400 * 60) { const d = Math.round(s / 86400); return `${d} day${d === 1 ? '' : 's'} ago`; }
+  return dateFmt.format(ms);
+}
+function yearLabel(ms) { return new Date(ms).getUTCFullYear(); }
+function giantName(p) { return p.replace(/^The\s+/, '').replace(/^\d{4}\s+/, '').replace(/\s+Earthquake$/, '').replace(/\s*\(([^)]*)$/, ' ($1)'); }
+function cap1(p) { return p ? p[0].toUpperCase() + p.slice(1) : p; }
+function shortPlace(p) { const i = p.indexOf(' of '); return cap1(i >= 0 && /\d\s?km/.test(p.slice(0, i)) ? p.slice(i + 4) : p.replace(/^\d{4}\s+/, '').replace(/\s+Earthquake$/, '')); }
+function depthBand(d) { return d < 70 ? 0 : d < 300 ? 1 : 2; }
+const DEPTH_STOPS = [[0, '#ffe9a6'], [35, '#ffc757'], [70, '#ff9a3c'], [150, '#ff6a3d'], [300, '#e8455a'], [500, '#c23f86'], [700, '#9b46b3']];
+function depthHex(d) {
+  for (let i = 1; i < DEPTH_STOPS.length; i++) {
+    if (d <= DEPTH_STOPS[i][0] || i === DEPTH_STOPS.length - 1) {
+      const [d0, h0] = DEPTH_STOPS[i - 1], [d1, h1] = DEPTH_STOPS[i];
+      const t = clamp((d - d0) / (d1 - d0), 0, 1);
+      const a = new THREE.Color(h0), b = new THREE.Color(h1);
+      return '#' + a.lerp(b, t).getHexString();
+    }
+  }
+  return DEPTH_STOPS[0][1];
+}
+const BAND_NAME = ['Shallow', 'Intermediate depth', 'Deep'];
+const PAGER = { pending: ['Pending', 'var(--ink-3)'], green: ['Green', 'var(--alert-green)'], yellow: ['Yellow', 'var(--alert-yellow)'], orange: ['Orange', 'var(--alert-orange)'], red: ['Red', 'var(--alert-red)'] };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const magClass = (m) => m >= 8 ? 'm8' : m >= 7 ? 'm7' : m >= 6 ? 'm6' : '';
+
+/* ---------------- renderer & scene ---------------- */
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+const PR = Math.min(devicePixelRatio || 1, 2);
+renderer.setPixelRatio(PR);
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.localClippingEnabled = true;
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.01, 100);
+camera.position.copy(dirOf(8, 172).multiplyScalar(3.4));
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+controls.minDistance = 1.28; controls.maxDistance = 22; controls.rotateSpeed = 0.42; controls.zoomSpeed = 0.75;
+const earth = new THREE.Group();
+scene.add(earth);
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+const localN = new THREE.Vector3(0, 0, 1); // slice-plane normal in earth-local coordinates
+const lightDir = new THREE.Vector3();
+
+/* ---------------- shaders ---------------- */
+const globeVS = /* glsl */`
+#include <clipping_planes_pars_vertex>
+varying vec2 vUv; varying vec3 vLocal; varying vec3 vWN; varying vec3 vView;
+void main(){
+  vUv = uv; vLocal = normalize(position);
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWN = normalize(mat3(modelMatrix) * normal);
+  vView = normalize(cameraPosition - wp.xyz);
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <clipping_planes_vertex>
+}`;
+const globeFS = /* glsl */`
+#include <clipping_planes_pars_fragment>
+uniform sampler2D map; uniform vec3 uLight; uniform float uWaveOn; uniform float uWaveT; uniform vec3 uEpi; uniform sampler2D uTT; uniform float uBright;
+varying vec2 vUv; varying vec3 vLocal; varying vec3 vWN; varying vec3 vView;
+void main(){
+  #include <clipping_planes_fragment>
+  vec3 c = texture2D(map, vUv).rgb * uBright;
+  vec3 n = normalize(vWN);
+  float nl = dot(n, normalize(uLight));
+  c *= 0.60 + 0.62 * max(nl, 0.0) + 0.06 * min(nl, 0.0);
+  float rim = pow(1.0 - max(dot(n, vView), 0.0), 3.0);
+  c += vec3(1.0, 0.42, 0.16) * rim * 0.30;
+  if (uWaveOn > 0.5) {
+    float d = acos(clamp(dot(vLocal, uEpi), -1.0, 1.0)) * 57.29578;
+    vec4 tt = texture2D(uTT, vec2((d * 2.0 + 0.5) / 361.0, 0.5));
+    float t = uWaveT;
+    float p = tt.r > 0.0 ? exp(-pow((t - tt.r) / 22.0, 2.0)) : 0.0;
+    float pk = tt.b > 0.0 ? exp(-pow((t - tt.b) / 22.0, 2.0)) : 0.0;
+    float s = tt.g > 0.0 ? exp(-pow((t - tt.g) / 30.0, 2.0)) : 0.0;
+    float reached = ((tt.r > 0.0 && t > tt.r) || (tt.b > 0.0 && t > tt.b)) ? 1.0 : 0.0;
+    float dk = d * 111.195;
+    float s1 = exp(-pow((t - dk / 3.7) / 80.0, 2.0));
+    float s2 = exp(-pow((t - (40030.0 - dk) / 3.7) / 80.0, 2.0));
+    float s3 = exp(-pow((t - (40030.0 + dk) / 3.7) / 80.0, 2.0));
+    c = mix(c, c * 1.18 + vec3(0.035, 0.022, 0.0), reached * 0.7);
+    c += vec3(1.0, 0.77, 0.32) * (p + pk) * 0.9 + vec3(1.0, 0.44, 0.56) * s * 0.9 + vec3(0.45, 0.81, 0.94) * (s1 + 0.7 * s2 + 0.5 * s3) * 0.8;
+  }
+  gl_FragColor = vec4(c, 1.0);
+}`;
+const glowVS = `varying vec3 vN; varying vec3 vV; void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vN = normalize(mat3(modelMatrix)*normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }`;
+const glowFS = `uniform float uK; varying vec3 vN; varying vec3 vV; void main(){ float f = dot(normalize(vN), normalize(vV)); float a = pow(clamp(-f / 0.42, 0.0, 1.0), 2.4) * uK; gl_FragColor = vec4(vec3(1.0, 0.45, 0.17) * a, 1.0); }`;
+
+const quakeVS = /* glsl */`
+attribute float aDepth; attribute float aMag; attribute float aRel; attribute float aIdx;
+uniform float uNow, uStart, uMagMin, uPR, uScale, uSlice, uBand, uFlash, uSel, uHover, uAgeSpan, uLive;
+uniform vec3 uMask; uniform vec3 uN;
+varying vec3 vCol; varying float vA; varying float vFlash; varying float vSel; varying float vPulse;
+vec3 depthCol(float d){
+  vec3 c0=vec3(1.0,0.914,0.651), c1=vec3(1.0,0.78,0.341), c2=vec3(1.0,0.604,0.235), c3=vec3(1.0,0.416,0.239), c4=vec3(0.91,0.271,0.353), c5=vec3(0.761,0.247,0.525), c6=vec3(0.608,0.275,0.702);
+  if(d<35.) return mix(c0,c1,d/35.);
+  if(d<70.) return mix(c1,c2,(d-35.)/35.);
+  if(d<150.) return mix(c2,c3,(d-70.)/80.);
+  if(d<300.) return mix(c3,c4,(d-150.)/150.);
+  if(d<500.) return mix(c4,c5,(d-300.)/200.);
+  return mix(c5,c6,clamp((d-500.)/200.,0.,1.));
+}
+void main(){
+  float band = aDepth < 70.0 ? uMask.x : (aDepth < 300.0 ? uMask.y : uMask.z);
+  if (aRel > uNow || aRel < uStart || aMag < uMagMin - 0.001 || band < 0.5) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  vec3 dir = normalize(position);
+  vec3 p = dir * 1.0035;
+  if (uSlice > 0.5) {
+    vec3 q = dir * (1.0 - aDepth / 6371.0);
+    float sd = dot(q, uN) * 6371.0;
+    if (sd > -uBand && sd < uBand) { p = q - uN * dot(q, uN) + uN * 0.004; }
+    else if (sd >= uBand) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+  }
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  float age = clamp((uNow - aRel) / uAgeSpan, 0.0, 1.0);
+  float fl = uFlash > 0.0 ? 1.0 - clamp((uNow - aRel) / uFlash, 0.0, 1.0) : 0.0;
+  float s = 2.3 * pow(1.55, aMag - 4.5) * (1.0 + 1.7 * fl);
+  gl_PointSize = s * 2.4 * uPR * uScale;
+  vCol = depthCol(aDepth);
+  vA = mix(1.0, 0.42, sqrt(age));
+  vFlash = fl;
+  vSel = abs(aIdx - uSel) < 0.5 ? 1.0 : (abs(aIdx - uHover) < 0.5 ? 0.55 : 0.0);
+  vPulse = (uLive > 0.5 && (uNow - aRel) < 86400.0) ? 1.0 : 0.0;
+}`;
+const quakeFS = /* glsl */`
+uniform float uClock;
+varying vec3 vCol; varying float vA; varying float vFlash; varying float vSel; varying float vPulse;
+void main(){
+  float d = length(gl_PointCoord - 0.5) * 4.8;
+  if (d > 2.4) discard;
+  float core = 1.0 - smoothstep(0.72, 1.0, d);
+  float halo = exp(-d * d * 1.5);
+  vec3 hot = mix(vCol, vec3(1.0, 0.97, 0.9), vFlash * 0.85);
+  float a = core * 0.9 * vA;
+  vec3 c = hot * (core * 0.95 * vA + halo * 0.16 * vA + vFlash * halo * 0.8);
+  float ring = vSel * (1.0 - smoothstep(0.07, 0.15, abs(d - 1.45)));
+  c += vec3(1.0, 0.95, 0.85) * ring * 0.95; a = max(a, ring * 0.9);
+  if (vPulse > 0.5) { float ph = fract(uClock * 0.55); float rr = 1.05 + ph * 1.25; c += vCol * (1.0 - smoothstep(0.05, 0.13, abs(d - rr))) * (1.0 - ph) * 0.9; }
+  gl_FragColor = vec4(c, a);
+}`;
+const volcVS = /* glsl */`
+attribute float aKind; uniform float uPR, uScale, uSlice; uniform vec3 uN; varying float vKind;
+void main(){
+  vec3 dir = normalize(position);
+  if (uSlice > 0.5 && dot(dir, uN) > 0.0) { gl_Position = vec4(0.0,0.0,2.0,1.0); gl_PointSize = 0.0; return; }
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(dir * 1.0045, 1.0);
+  gl_PointSize = (aKind > 1.5 ? 13.0 : (aKind > 0.5 ? 7.0 : 5.5)) * uPR * uScale;
+  vKind = aKind;
+}`;
+const volcFS = /* glsl */`
+varying float vKind;
+void main(){
+  vec2 p = gl_PointCoord; float y = 1.0 - p.y;
+  float hw = (0.88 - y) * 0.62;
+  if (y < 0.12 || y > 0.88 || abs(p.x - 0.5) > hw) discard;
+  float edge = min(hw - abs(p.x - 0.5), y - 0.12);
+  vec3 c = vKind > 3.5 ? vec3(1.0,0.29,0.29) : vKind > 2.5 ? vec3(1.0,0.55,0.1) : vKind > 1.5 ? vec3(1.0,0.82,0.25) : vKind > 0.5 ? vec3(0.95,0.69,0.42) : vec3(0.55,0.45,0.38);
+  float ring = edge < 0.06 ? 0.55 : 1.0;
+  gl_FragColor = vec4(c * ring, 1.0);
+}`;
+const staVS = /* glsl */`
+attribute float aTp; attribute float aTs; uniform float uT, uPR, uScale; uniform vec3 uN; varying float vP; varying float vS; varying float vFl;
+void main(){
+  vec3 dir = normalize(position);
+  if (dot(dir, uN) > 0.02) { gl_Position = vec4(0.0,0.0,2.0,1.0); gl_PointSize = 0.0; return; }
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(dir * 1.006, 1.0);
+  vP = aTp > 0.0 && uT >= aTp ? 1.0 : 0.0;
+  vS = aTs > 0.0 && uT >= aTs ? 1.0 : 0.0;
+  float fp = aTp > 0.0 ? exp(-pow((uT - aTp) / 25.0, 2.0)) : 0.0;
+  float fs = aTs > 0.0 ? exp(-pow((uT - aTs) / 30.0, 2.0)) : 0.0;
+  vFl = max(fp, fs);
+  gl_PointSize = (8.0 + 10.0 * vFl) * uPR * uScale;
+}`;
+const staFS = /* glsl */`
+varying float vP; varying float vS; varying float vFl;
+void main(){
+  vec2 q = gl_PointCoord - 0.5; float d = max(abs(q.x), abs(q.y)) * 2.0;
+  if (d > 1.0) discard;
+  vec3 base = vec3(0.55, 0.45, 0.38) * 0.7;
+  vec3 c = vS > 0.5 ? vec3(1.0, 0.44, 0.56) : (vP > 0.5 ? vec3(1.0, 0.77, 0.32) : base);
+  float a = d > 0.62 ? 1.0 : (vP > 0.5 ? 0.55 : 0.25);
+  gl_FragColor = vec4(c * a + vec3(1.0, 0.9, 0.7) * vFl * 0.6, 1.0);
+}`;
+
+/* ---------------- state ---------------- */
+const S = {
+  view: 'year', mode: 'intro', magMin: 4.5, depthOn: [true, true, true], layers: { plates: true, speeds: false, volc: true },
+  listSort: 'latest', sel: null, hover: null, endMs: 0, startMs: 0,
+};
+let DATA = null; // { year:[], giants:[], plates, volc, earth, waves:Set }
+let quakePts = null, giantPts = null, volcPts = null, plateObjs = null, globe = null, glow = null, cap = null;
+let heat = null, heatNorm = 1;
+const tweens = [];
+function tween(dur, fn, done) { const t = { t0: performance.now(), dur, fn, done }; tweens.push(t); return t; }
+
+/* ---------------- loading ---------------- */
+const prog = { n: 0, of: 6 };
+function step(label) { prog.n++; $('progBar').style.width = `${Math.round(prog.n / prog.of * 100)}%`; if (label) $('progText').textContent = label; }
+async function getJSON(u) { const r = await fetch(u); if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`); return r.json(); }
+function loadTex(u) {
+  return new Promise((res, rej) => new THREE.TextureLoader().load(u, (t) => { t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); res(t); }, undefined, () => rej(new Error('texture ' + u))));
+}
+
+async function boot() {
+  const big = renderer.capabilities.maxTextureSize >= 8192 && !narrow() && innerWidth * PR > 1400;
+  const pTex = loadTex(big ? 'tex/relief_8k.jpg' : 'tex/relief_4k.jpg').then((t) => { step('Shading the seafloor…'); return t; });
+  const [q, plates, volc, earthM, idx, tex] = await Promise.all([
+    getJSON('data/quakes.json').then((d) => { step('Reading the catalog…'); return d; }),
+    getJSON('data/plates.json').then((d) => { step('Tracing plate edges…'); return d; }),
+    getJSON('data/volcanoes.json').then((d) => { step('Placing volcanoes…'); return d; }),
+    getJSON('data/earth.json').then((d) => { step('Loading the Earth model…'); return d; }),
+    getJSON('data/waves/index.json').catch(() => []).then((d) => { step(); return d; }),
+    pTex,
+  ]);
+  S.endMs = Date.parse(q.end); S.startMs = Date.parse(q.start);
+  const F = Object.fromEntries(q.fields.map((f, i) => [f, i]));
+  const mk = (r, kind, i) => ({
+    i, kind, id: r[F.id], time: r[F.time], lat: r[F.lat], lon: r[F.lon], depth: r[F.depth], mag: r[F.mag], magType: r[F.magType],
+    place: r[F.place], alert: r[F.alert], felt: r[F.felt], mmi: r[F.mmi], seg: r[F.seg], rel: (r[F.time] - S.endMs) / 1000,
+    dir: dirOf(r[F.lat], r[F.lon]), E: energyJ(r[F.mag]),
+  });
+  DATA = {
+    year: q.year.map((r, i) => mk(r, 'year', i)), giants: q.giants.map((r, i) => mk(r, 'giant', i)), plates, volc, earth: earthM,
+    waves: new Map(idx.map((w) => [w.id, w])), source: q.source, fetched: q.fetched, context: q.context || null, alertsFetched: volc.alertsFetched || q.fetched,
+  };
+  buildScene(tex);
+  buildUI();
+  $('loading').classList.add('gone');
+  requestAnimationFrame(frame);
+  if (reduceMotion) finishIntro(true); else startTimeline('intro');
+}
+
+/* ---------------- scene construction ---------------- */
+function buildScene(tex) {
+  tex.colorSpace = THREE.NoColorSpace;
+  const tt = new THREE.DataTexture(new Float32Array(361 * 4).fill(-1), 361, 1, THREE.RGBAFormat, THREE.FloatType);
+  tt.needsUpdate = true;
+  globe = new THREE.Mesh(new THREE.SphereGeometry(1, 192, 128), new THREE.ShaderMaterial({
+    uniforms: { map: { value: tex }, uLight: { value: lightDir }, uWaveOn: { value: 0 }, uWaveT: { value: 0 }, uEpi: { value: new THREE.Vector3(0, 1, 0) }, uTT: { value: tt }, uBright: { value: 1.1 } },
+    vertexShader: globeVS, fragmentShader: globeFS, clipping: true,
+  }));
+  earth.add(globe);
+  glow = new THREE.Mesh(new THREE.SphereGeometry(1.09, 96, 64), new THREE.ShaderMaterial({
+    uniforms: { uK: { value: 0.55 } }, vertexShader: glowVS, fragmentShader: glowFS, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  scene.add(glow);
+  quakePts = makeQuakePoints(DATA.year, 365 * 86400);
+  giantPts = makeQuakePoints(DATA.giants, 1e12);
+  giantPts.visible = false;
+  earth.add(quakePts, giantPts);
+  buildPlates();
+  buildVolcanoes();
+  buildCap();
+}
+
+function makeQuakePoints(list, ageSpan) {
+  const n = list.length, pos = new Float32Array(n * 3), dep = new Float32Array(n), mag = new Float32Array(n), rel = new Float32Array(n), idx = new Float32Array(n);
+  list.forEach((q, i) => { pos.set([q.dir.x, q.dir.y, q.dir.z], i * 3); dep[i] = q.depth; mag[i] = q.mag; rel[i] = q.kind === 'giant' ? -1 : q.rel; idx[i] = i; });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aDepth', new THREE.BufferAttribute(dep, 1));
+  g.setAttribute('aMag', new THREE.BufferAttribute(mag, 1));
+  g.setAttribute('aRel', new THREE.BufferAttribute(rel, 1));
+  g.setAttribute('aIdx', new THREE.BufferAttribute(idx, 1));
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1.1);
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      uNow: { value: 0 }, uStart: { value: -365 * 86400 }, uMagMin: { value: 4.5 }, uPR: { value: PR }, uScale: { value: 1 }, uSlice: { value: 0 }, uBand: { value: 250 },
+      uFlash: { value: 0 }, uSel: { value: -1 }, uHover: { value: -1 }, uAgeSpan: { value: ageSpan }, uLive: { value: 1 }, uMask: { value: new THREE.Vector3(1, 1, 1) }, uN: { value: localN }, uClock: { value: 0 },
+    },
+    vertexShader: quakeVS, fragmentShader: quakeFS, transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendEquation: THREE.AddEquation,
+  });
+  const p = new THREE.Points(g, m);
+  p.frustumCulled = false; p.renderOrder = 5;
+  p.userData.list = list;
+  return p;
+}
+
+/* plates: three dash styles plus a glow layer that carries activity "heat" */
+const PLATE_GROUP = [0, 0, 0, 1, 1, 2, 2]; // class -> converging / spreading / sliding
+const PLATE_BASE = [new THREE.Color('#f1dcc6').multiplyScalar(0.62), new THREE.Color('#bfa996').multiplyScalar(0.5), new THREE.Color('#9e8c7d').multiplyScalar(0.48)];
+const HEAT_COL = new THREE.Color('#ff7a2a');
+const HEAT_HOT = new THREE.Color('#ffd27a');
+function buildPlates() {
+  const rows = DATA.plates.rows, n = rows.length;
+  const mids = new Float32Array(n * 3);
+  const groups = [[], [], []];
+  const a = new THREE.Vector3(), b = new THREE.Vector3();
+  rows.forEach((r, i) => {
+    dirOf(r[1], r[0], a); dirOf(r[3], r[2], b);
+    const m = a.clone().add(b).normalize(); mids.set([m.x, m.y, m.z], i * 3);
+    groups[PLATE_GROUP[r[4]]].push(i);
+  });
+  const mkLine = (ids, width, dashed, dash) => {
+    const pos = new Float32Array(ids.length * 6);
+    ids.forEach((i, k) => { const r = rows[i]; dirOf(r[1], r[0], a).multiplyScalar(1.0014); dirOf(r[3], r[2], b).multiplyScalar(1.0014); pos.set([a.x, a.y, a.z, b.x, b.y, b.z], k * 6); });
+    const g = new LineSegmentsGeometry(); g.setPositions(pos);
+    const col = new Float32Array(ids.length * 6); g.setColors(col);
+    const pbuf = g.attributes.instanceStart.data, orig = pbuf.array.slice();
+    const m = new LineMaterial({ vertexColors: true, linewidth: width, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, dashed, dashSize: dash, gapSize: dash * 0.9, dashScale: 1 });
+    m.resolution.set(innerWidth, innerHeight);
+    const l = new LineSegments2(g, m); if (dashed) l.computeLineDistances();
+    l.frustumCulled = false; l.renderOrder = 3;
+    return { line: l, ids, col: g.attributes.instanceColorStart.data, pbuf, orig, collapsed: false };
+  };
+  const all = rows.map((_, i) => i);
+  plateObjs = {
+    mids, groups,
+    lines: [mkLine(groups[0], 1.5, false, 0), mkLine(groups[1], 1.3, true, 0.007), mkLine(groups[2], 1.3, true, 0.0028)],
+    glow: mkLine(all, 5.5, false, 0),
+    labels: [],
+  };
+  plateObjs.lines.forEach((o) => earth.add(o.line));
+  earth.add(plateObjs.glow.line);
+  heat = new Float32Array(n);
+  // speed labels: the middle step of each long boundary
+  const byBound = new Map();
+  rows.forEach((r, i) => { if (!byBound.has(r[9])) byBound.set(r[9], []); byBound.get(r[9]).push(i); });
+  const picks = [];
+  for (const ids of byBound.values()) {
+    if (ids.length < 24) continue;
+    for (const k of (ids.length > 90 ? [0.25, 0.75] : [0.5])) { const i = ids[Math.floor(ids.length * k)]; if (rows[i][5] >= 15) picks.push(i); }
+  }
+  const box = $('ui');
+  for (const i of picks) {
+    const r = rows[i], el = document.createElement('div');
+    const gp = PLATE_GROUP[r[4]], sym = gp === 0 ? '→←' : gp === 1 ? '←→' : '⇅';
+    el.className = 'speedtag'; el.innerHTML = `<span>${sym}</span> ${fmt(r[5])} <small>mm/yr</small>`;
+    el.hidden = true; box.insertBefore(el, box.firstChild);
+    plateObjs.labels.push({ el, i, dir: new THREE.Vector3(mids[i * 3], mids[i * 3 + 1], mids[i * 3 + 2]) });
+  }
+  plateObjs.labels.sort((a, b) => rows[b.i][5] - rows[a.i][5]);
+  $('plateN').textContent = '';
+}
+function paintPlates() {
+  if (!plateObjs) return;
+  const rows = DATA.plates.rows, on = S.layers.plates;
+  const sliced = S.mode === 'slice' || S.mode === 'wave';
+  const mids = plateObjs.mids;
+  const hidden = (i) => sliced && (mids[i * 3] * localN.x + mids[i * 3 + 1] * localN.y + mids[i * 3 + 2] * localN.z) > 0;
+  const c = new THREE.Color();
+  const vis = (i) => clamp(Math.log1p(heat[i]) / Math.log1p(heatNorm), 0, 1);
+  const hideP = localN.clone().multiplyScalar(-0.5);
+  for (const o of [...plateObjs.lines, plateObjs.glow]) {
+    if (!sliced && !o.collapsed) continue;
+    const a = o.pbuf.array; a.set(o.orig);
+    if (sliced) o.ids.forEach((i, k) => { if (hidden(i)) { for (const off of [0, 3]) { a[k * 6 + off] = hideP.x; a[k * 6 + off + 1] = hideP.y; a[k * 6 + off + 2] = hideP.z; } } });
+    o.collapsed = sliced; o.pbuf.needsUpdate = true;
+  }
+  plateObjs.lines.forEach((o, gi) => {
+    const arr = o.col.array;
+    o.ids.forEach((i, k) => {
+      if (!on || hidden(i)) { arr.fill(0, k * 6, k * 6 + 6); return; }
+      const h = vis(i);
+      c.copy(PLATE_BASE[gi]).lerp(HEAT_HOT, h * 0.55).multiplyScalar(1 + h * 0.5);
+      arr[k * 6] = arr[k * 6 + 3] = c.r; arr[k * 6 + 1] = arr[k * 6 + 4] = c.g; arr[k * 6 + 2] = arr[k * 6 + 5] = c.b;
+    });
+    o.col.needsUpdate = true; o.line.visible = on && S.mode !== 'wave';
+  });
+  const g = plateObjs.glow, arr = g.col.array;
+  for (let i = 0; i < rows.length; i++) {
+    if (S.mode === 'wave') { arr.fill(0, i * 6, i * 6 + 6); continue; }
+    if (!on || hidden(i)) { arr.fill(0, i * 6, i * 6 + 6); continue; }
+    const h = Math.pow(vis(i), 1.15);
+    c.copy(HEAT_COL).multiplyScalar(h * 0.42);
+    arr[i * 6] = arr[i * 6 + 3] = c.r; arr[i * 6 + 1] = arr[i * 6 + 4] = c.g; arr[i * 6 + 2] = arr[i * 6 + 5] = c.b;
+  }
+  g.col.needsUpdate = true; g.line.visible = on && S.mode !== 'wave';
+}
+function addHeat(q, w) {
+  const k = q.seg; if (k < 0) return;
+  const rows = DATA.plates.rows, b = rows[k][9];
+  heat[k] += w;
+  for (const [o, f] of [[1, 0.7], [2, 0.42], [3, 0.2]]) {
+    if (rows[k - o] && rows[k - o][9] === b) heat[k - o] += w * f;
+    if (rows[k + o] && rows[k + o][9] === b) heat[k + o] += w * f;
+  }
+}
+const heatW = (q) => 0.35 + 0.22 * (q.mag - 4.5);
+function heatFor(list) {
+  heat.fill(0);
+  for (const q of list) addHeat(q, heatW(q));
+  const nz = Array.from(heat).filter((h) => h > 0).sort((x, y) => x - y);
+  heatNorm = nz.length ? Math.max(1, nz[Math.floor(nz.length * 0.88)]) : 1;
+}
+
+function buildVolcanoes() {
+  const F = Object.fromEntries(DATA.volc.fields.map((f, i) => [f, i]));
+  const rows = DATA.volc.rows, n = rows.length, pos = new Float32Array(n * 3), kind = new Float32Array(n);
+  DATA.volcList = rows.map((r, i) => {
+    const v = { i, num: r[F.num], name: r[F.name], lat: r[F.lat], lon: r[F.lon], elev: r[F.elev], type: r[F.type], last: r[F.lastYear], country: r[F.country], summary: r[F.summary], alert: r[F.alert], dir: dirOf(r[F.lat], r[F.lon]) };
+    pos.set([v.dir.x, v.dir.y, v.dir.z], i * 3);
+    const al = v.alert ? v.alert[0] : '';
+    kind[i] = al === 'RED' ? 4 : al === 'ORANGE' ? 3 : al === 'YELLOW' ? 2 : (v.last != null && v.last >= 1900 ? 1 : 0);
+    return v;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aKind', new THREE.BufferAttribute(kind, 1));
+  volcPts = new THREE.Points(g, new THREE.ShaderMaterial({ uniforms: { uPR: { value: PR }, uScale: { value: 1 }, uSlice: { value: 0 }, uN: { value: localN } }, vertexShader: volcVS, fragmentShader: volcFS }));
+  volcPts.frustumCulled = false; volcPts.renderOrder = 4;
+  earth.add(volcPts);
+  $('volcN').textContent = fmt(n);
+}
+
+/* ---------------- cutaway face ---------------- */
+const capCanvas = document.createElement('canvas');
+let capTex = null;
+const capVS = `varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const capFS = /* glsl */`
+uniform sampler2D uOverlay; uniform float uOverlayOn; uniform float uGrid;
+varying vec2 vP;
+vec3 layerCol(float rk){
+  if (rk > 6336.0) return mix(vec3(0.40,0.27,0.19), vec3(0.34,0.23,0.16), (rk - 6336.0) / 35.0);
+  if (rk > 5961.0) return mix(vec3(0.60,0.25,0.13), vec3(0.50,0.21,0.13), (rk - 5961.0) / 375.0);
+  if (rk > 5711.0) return mix(vec3(0.63,0.27,0.14), vec3(0.57,0.24,0.13), (rk - 5711.0) / 250.0);
+  if (rk > 3482.0) return mix(vec3(0.66,0.29,0.15), vec3(0.45,0.17,0.10), (rk - 3482.0) / 2229.0);
+  if (rk > 1217.0) return mix(vec3(1.0,0.63,0.28), vec3(0.90,0.45,0.17), (rk - 1217.0) / 2265.0);
+  return mix(vec3(1.0,0.95,0.80), vec3(1.0,0.84,0.52), rk / 1217.0);
+}
+float bline(float rk, float b, float px){ return 1.0 - smoothstep(0.0, px * 1.3, abs(rk - b)); }
+void main(){
+  float r = length(vP); if (r > 1.0) discard;
+  float rk = r * 6371.0, px = max(fwidth(rk), 0.5);
+  vec3 c = layerCol(rk);
+  float l = max(max(bline(rk, 6336.0, px), bline(rk, 5961.0, px)), max(max(bline(rk, 5711.0, px), bline(rk, 3482.0, px)), bline(rk, 1217.0, px)));
+  c = mix(c, vec3(1.0, 0.9, 0.78), 0.38 * l);
+  float d = 6371.0 - rk;
+  if (uGrid > 0.5 && d < 705.0 && d > 5.0) { float g = abs(fract(d / 100.0 + 0.5) - 0.5) * 100.0; c = mix(c, vec3(1.0, 0.93, 0.82), 0.22 * (1.0 - smoothstep(0.0, px, g))); }
+  if (uOverlayOn > 0.5) { vec4 o = texture2D(uOverlay, vP * 0.5 + 0.5); c += o.rgb * o.a * 1.15; }
+  gl_FragColor = vec4(c, 1.0);
+}`;
+const capLabels = [];
+function buildCap() {
+  const N = narrow() ? 1000 : 1400;
+  capCanvas.width = capCanvas.height = N;
+  capTex = new THREE.CanvasTexture(capCanvas); capTex.colorSpace = THREE.NoColorSpace; capTex.premultiplyAlpha = false;
+  cap = new THREE.Mesh(new THREE.CircleGeometry(0.9995, 256), new THREE.ShaderMaterial({
+    uniforms: { uOverlay: { value: capTex }, uOverlayOn: { value: 0 }, uGrid: { value: 1 } }, vertexShader: capVS, fragmentShader: capFS, side: THREE.DoubleSide,
+  }));
+  cap.renderOrder = 1; cap.visible = false;
+  scene.add(cap);
+  const mk = (txt, x, y, cls, modes) => { const el = document.createElement('div'); el.className = 'caplabel ' + cls; el.textContent = txt; el.hidden = true; $('ui').appendChild(el); capLabels.push({ el, p: new THREE.Vector3(x, y, 0.002), modes }); };
+  const at = (r) => [-Math.sin(0.6) * r, -Math.cos(0.6) * r];
+  mk('Inner core · solid', 0, -0.02, 'lay', ['wave', 'slice']);
+  mk('Outer core · liquid', ...at((ICB + CMB) / 2 / R_KM), 'lay', ['wave', 'slice']);
+  mk('Mantle · solid rock', ...at(0.73), 'lay', ['wave', 'slice']);
+  for (const d of [100, 300, 500, 700]) mk(`${d} km`, 0.004, 1 - d / R_KM, 'dep', ['slice']);
+  mk('Surface', 0.004, 1.0, 'dep', ['slice']);
+  drawCap();
+}
+function capXY(r, th) { const N = capCanvas.width, c = N / 2, R = N / 2 - 2; return [c + Math.sin(th) * R * r / R_KM, c - Math.cos(th) * R * r / R_KM]; }
+function drawCap() {
+  const g = capCanvas.getContext('2d'), N = capCanvas.width;
+  g.clearRect(0, 0, N, N);
+  const on = S.mode === 'wave' && W.ready;
+  if (on) drawWaveFronts(g, N);
+  if (cap) { cap.material.uniforms.uOverlayOn.value = on ? 1 : 0; cap.material.uniforms.uGrid.value = S.mode === 'slice' ? 1 : 0; }
+  if (capTex) capTex.needsUpdate = true;
+}
+function updateCapLabels() {
+  const vis = cap && cap.visible;
+  for (const L of capLabels) {
+    if (!vis || !L.modes.includes(S.mode) || camera.position.z < 0.02) { if (!L.el.hidden) L.el.hidden = true; continue; }
+    _v.copy(L.p).project(camera);
+    const x = (_v.x + 1) / 2 * innerWidth, y = (1 - _v.y) / 2 * innerHeight;
+    if (_v.z > 1 || x < -50 || x > innerWidth + 50 || y < 0 || y > innerHeight) { L.el.hidden = true; continue; }
+    L.el.hidden = false; L.el.style.transform = `translate(${x}px, ${y}px) translate(${L.el.classList.contains('dep') ? '6px' : '-50%'}, -50%)`;
+  }
+}
+
+/* ---------------- orientation helpers ---------------- */
+function sliceQuat(pivot, turnDeg) {
+  const p = pivot.clone().normalize();
+  let north = new THREE.Vector3(0, 1, 0).sub(p.clone().multiplyScalar(p.y));
+  if (north.lengthSq() < 1e-6) north = new THREE.Vector3(1, 0, 0);
+  north.normalize();
+  const east = new THREE.Vector3().crossVectors(north, p).normalize();
+  const south = north.clone().negate();
+  const m = new THREE.Matrix4().makeBasis(east, p, south);
+  const q0 = new THREE.Quaternion().setFromRotationMatrix(m).invert();
+  return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), turnDeg * Math.PI / 180).multiply(q0);
+}
+function updateLocalN() { localN.set(0, 0, 1).applyQuaternion(earth.quaternion.clone().invert()); }
+function moveTo(quat, camPos, dur = 1300, done, target = new THREE.Vector3()) {
+  const q0 = earth.quaternion.clone(), c0 = camera.position.clone(), t0 = controls.target.clone();
+  const d0 = c0.length(), d1 = camPos.length(), u0 = c0.clone().normalize(), u1 = camPos.clone().normalize();
+  controls.enabled = false;
+  tween(reduceMotion ? 1 : dur, (e) => {
+    earth.quaternion.slerpQuaternions(q0, quat, e);
+    const u = slerpVec(u0, u1, e);
+    camera.position.copy(u.multiplyScalar(lerp(d0, d1, e)));
+    controls.target.lerpVectors(t0, target, e);
+    camera.lookAt(controls.target);
+    updateLocalN();
+  }, () => { controls.enabled = true; updateLocalN(); paintPlates(); if (done) done(); });
+}
+function slerpVec(a, b, t) {
+  const d = clamp(a.dot(b), -1, 1);
+  if (d > 0.9995) return a.clone().lerp(b, t).normalize();
+  const th = Math.acos(d) * t;
+  const rel = b.clone().sub(a.clone().multiplyScalar(d)).normalize();
+  return a.clone().multiplyScalar(Math.cos(th)).add(rel.multiplyScalar(Math.sin(th)));
+}
+function flyTo(dir, dist = 2.6, dur = 1200) {
+  if (S.mode === 'slice' || S.mode === 'wave') return;
+  moveTo(earth.quaternion.clone(), dir.clone().normalize().multiplyScalar(dist), dur);
+}
+function worldOf(local) { return local.clone().applyQuaternion(earth.quaternion); }
+function viewArea() {
+  const W0 = innerWidth, H0 = innerHeight, top = $('topbar').offsetHeight + 4;
+  const m = S.mode;
+  if (m === 'intro') return { x0: 0, x1: W0, y0: H0 * 0.12, y1: H0, k: 0.42 };
+  if (narrow()) {
+    if (m === 'wave') { const hud = $('waveHud').getBoundingClientRect(), rec = $('record').getBoundingClientRect(); return { x0: 0, x1: W0, y0: hud.bottom + 4, y1: rec.top - 4, k: 0.47 }; }
+    if (m === 'replay') return { x0: 0, x1: W0, y0: top, y1: $('replay').getBoundingClientRect().top - 6, k: 0.46 };
+    return { x0: 0, x1: W0, y0: top, y1: H0 - $('bottom').offsetHeight - 24, k: 0.46 };
+  }
+  if (m === 'wave') return { x0: 16, x1: $('record').getBoundingClientRect().left - 8, y0: top, y1: H0 - 10, k: 0.43, dx: 30 };
+  if (m === 'replay') return { x0: 0, x1: W0, y0: top, y1: $('replay').getBoundingClientRect().top - 10, k: 0.47 };
+  const f = $('filters').getBoundingClientRect(), sd = $('side').getBoundingClientRect();
+  return { x0: f.right > 0 ? f.right + 8 : 16, x1: sd.left > 0 ? sd.left - 8 : W0 - 16, y0: top, y1: H0 - $('bottom').offsetHeight - 26, k: 0.47 };
+}
+function fitDist(rPx) {
+  const tanHalf = Math.tan(camera.fov * Math.PI / 360), a = Math.atan(rPx / (innerHeight / 2) * tanHalf);
+  return clamp(1 / Math.sin(a), 1.4, 20);
+}
+function areaDist() { const A = viewArea(); return fitDist(A.k * Math.min(A.x1 - A.x0, A.y1 - A.y0)); }
+const viewOff = { x: 0, y: 0 };
+function applyViewOffset(snap = false) {
+  const A = viewArea(), cx = (A.x0 + A.x1) / 2 + (A.dx || 0), cy = (A.y0 + A.y1) / 2;
+  const tx = innerWidth / 2 - cx, ty = innerHeight / 2 - cy;
+  viewOff.x = snap ? tx : lerp(viewOff.x, tx, 0.12); viewOff.y = snap ? ty : lerp(viewOff.y, ty, 0.12);
+  camera.setViewOffset(innerWidth, innerHeight, viewOff.x, viewOff.y, innerWidth, innerHeight);
+}
+
+/* ---------------- filtering & views ---------------- */
+const VIEW_SECS = { week: 7 * 86400, month: 30 * 86400, year: 365 * 86400 };
+const VIEW_TITLE = { week: 'Past week', month: 'Past 30 days', year: 'Past year', giants: 'Giants since 1900' };
+function inWindow(q) { return S.view === 'giants' ? q.kind === 'giant' : q.kind === 'year' && q.rel >= -VIEW_SECS[S.view]; }
+function passes(q) { return inWindow(q) && q.mag >= S.magMin - 1e-6 && S.depthOn[depthBand(q.depth)]; }
+function visibleList() { return (S.view === 'giants' ? DATA.giants : DATA.year).filter(passes); }
+function applyFilters() {
+  const giant = S.view === 'giants';
+  quakePts.visible = !giant; giantPts.visible = giant;
+  for (const p of [quakePts, giantPts]) {
+    const u = p.material.uniforms;
+    u.uMagMin.value = S.magMin;
+    u.uMask.value.set(+S.depthOn[0], +S.depthOn[1], +S.depthOn[2]);
+    if (S.mode !== 'intro' && S.mode !== 'replay') { u.uNow.value = 0; u.uStart.value = p === giantPts ? -1e12 : -VIEW_SECS[S.view] - 1; u.uFlash.value = 0; u.uAgeSpan.value = p === giantPts ? 1e12 : VIEW_SECS[S.view]; }
+    u.uLive.value = S.mode === 'replay' || S.mode === 'intro' ? 0 : 1;
+  }
+  volcPts.visible = S.layers.volc;
+  const vis = visibleList();
+  if (S.mode !== 'intro' && S.mode !== 'replay') heatFor(vis);
+  paintPlates();
+  updateStats(vis);
+  renderList(vis);
+  const base = (S.view === 'giants' ? DATA.giants : DATA.year).filter((q) => inWindow(q) && q.mag >= S.magMin - 1e-6);
+  [0, 1, 2].forEach((b) => { $('dn' + b).textContent = fmt(base.filter((q) => depthBand(q.depth) === b).length); });
+  $('shownCount').textContent = `${fmt(vis.length)} quakes`;
+  if (S.sel && S.sel.kind !== 'volcano' && !passes(S.sel)) closeCard();
+}
+function setView(v) {
+  S.view = v;
+  document.querySelectorAll('#viewSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+  closeCard();
+  applyFilters();
+}
+
+/* ---------------- stats & charts ---------------- */
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  return { g, w, h };
+}
+const INK = '#fff2e6', INK2 = '#e3c6ad', INK3 = '#ab8c77', GRID = 'rgba(255,200,158,0.10)';
+const chartHits = new Map();
+function rr(g, x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function updateStats(list) {
+  $('statTitle').textContent = VIEW_TITLE[S.view];
+  $('statRange').textContent = S.view === 'giants' ? 'M8.5 and up' : `${dateShort.format(S.view === 'year' ? S.startMs : S.endMs - VIEW_SECS[S.view] * 1000)} – ${dateShort.format(S.endMs)}`;
+  $('stCount').textContent = fmt(list.length);
+  $('stCount').nextElementSibling.textContent = `quakes M${(S.view === 'giants' ? Math.max(8.5, S.magMin) : S.magMin).toFixed(1)}+`;
+  const big = list.reduce((a, q) => (!a || q.mag > a.mag ? q : a), null);
+  const deep = list.reduce((a, q) => (!a || q.depth > a.depth ? q : a), null);
+  $('stBig').textContent = big ? `M${big.mag.toFixed(1)}` : '–';
+  $('stBigWhere').textContent = big ? (big.kind === 'giant' ? `${giantName(big.place)}, ${yearLabel(big.time)}` : shortPlace(big.place)) : 'biggest';
+  $('stDeep').textContent = deep ? `${fmt(deep.depth)} km` : '–';
+  $('stDeepWhere').textContent = deep ? shortPlace(deep.place) : 'deepest';
+  const E = list.reduce((s, q) => s + q.E, 0);
+  $('stEnergy').textContent = list.length ? fmtTNT(E) : '–';
+  $('stEnergy').title = list.length ? `About ${fmtTNT(E, true)}, estimated from magnitude` : '';
+  drawMagChart(list); drawDepthChart(list); drawShareChart(list, E);
+}
+function drawMagChart(list) {
+  const cv = $('magCanvas'); const { g, w, h } = setupCanvas(cv);
+  const lo = S.view === 'giants' ? 8.5 : 4.5, hi = S.view === 'giants' ? 9.6 : 8.5, stepM = S.view === 'giants' ? 0.1 : 0.5;
+  const nb = Math.round((hi - lo) / stepM), bins = new Array(nb).fill(0);
+  for (const q of list) bins[clamp(Math.floor((q.mag - lo + 1e-6) / stepM), 0, nb - 1)]++;
+  const pad = { l: 30, r: 6, t: 6, b: 18 }, pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+  const mx = Math.max(1, ...bins), top = Math.pow(10, Math.ceil(Math.log10(mx)));
+  const y = (v) => pad.t + ph - (v <= 0 ? 0 : (Math.log10(v) + 0.15) / (Math.log10(top) + 0.15) * ph);
+  g.font = '600 10.5px Nunito, system-ui, sans-serif'; g.textBaseline = 'middle';
+  for (let v = 1; v <= top; v *= 10) { g.strokeStyle = GRID; g.beginPath(); g.moveTo(pad.l, y(v)); g.lineTo(w - pad.r, y(v)); g.stroke(); g.fillStyle = INK3; g.textAlign = 'right'; g.fillText(v >= 1000 ? `${v / 1000}k` : v, pad.l - 5, y(v)); }
+  const bw = pw / nb, hits = [];
+  bins.forEach((v, i) => {
+    const x = pad.l + i * bw + 1, yy = y(v), mag = lo + i * stepM;
+    if (v > 0) { g.fillStyle = mag >= 7 ? '#ff7b2e' : mag >= 6 ? '#ffa04a' : '#ffc757'; rr(g, x, yy, bw - 2, pad.t + ph - yy, 3); g.fill(); }
+    hits.push({ x0: x, x1: x + bw - 2, label: `M${mag.toFixed(1)}–${(mag + stepM - 0.1).toFixed(1)}: ${fmt(v)} quake${v === 1 ? '' : 's'}` });
+  });
+  g.fillStyle = INK3; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  for (let i = 0; i <= nb; i += S.view === 'giants' ? 2 : 1) { if (i === nb && S.view !== 'giants') continue; g.fillText((lo + i * stepM).toFixed(1), pad.l + i * bw + (S.view === 'giants' ? 0 : bw / 2), h - 4); }
+  chartHits.set(cv, hits);
+  // "about N× fewer per step" from the data itself
+  if (S.view !== 'giants') {
+    const c45 = list.filter((q) => q.mag >= 4.5).length, c6 = list.filter((q) => q.mag >= 6).length;
+    $('magNote').textContent = c6 >= 5 ? `log scale · ~${Math.round(Math.pow(c45 / c6, 1 / 1.5))}× fewer per whole magnitude` : 'log scale';
+  } else $('magNote').textContent = 'count';
+}
+const DEPTH_BINS = [[0, 35], [35, 70], [70, 150], [150, 300], [300, 500], [500, 800]];
+function drawDepthChart(list) {
+  const cv = $('depthCanvas'); const { g, w, h } = setupCanvas(cv);
+  const counts = DEPTH_BINS.map(([a, b]) => list.filter((q) => q.depth >= a && q.depth < b).length);
+  const mx = Math.max(1, ...counts), pad = { l: 58, r: 40 }, rowH = h / DEPTH_BINS.length, hits = [];
+  g.font = '600 10.5px Nunito, system-ui, sans-serif'; g.textBaseline = 'middle';
+  DEPTH_BINS.forEach(([a, b], i) => {
+    const yy = i * rowH + rowH / 2, bw = (w - pad.l - pad.r) * counts[i] / mx;
+    g.fillStyle = INK3; g.textAlign = 'right'; g.fillText(b > 700 ? `${a}+` : `${a}–${b}`, pad.l - 8, yy);
+    g.fillStyle = depthHex((a + Math.min(b, 700)) / 2);
+    if (counts[i] > 0) { rr(g, pad.l, yy - rowH * 0.32, Math.max(3, bw), rowH * 0.64, 3); g.fill(); }
+    g.fillStyle = INK2; g.textAlign = 'left'; g.fillText(fmt(counts[i]), pad.l + Math.max(3, bw) + 6, yy);
+    hits.push({ y0: i * rowH, y1: (i + 1) * rowH, label: `${a}–${b > 700 ? '700+' : b} km deep: ${fmt(counts[i])} (${list.length ? Math.round(counts[i] / list.length * 100) : 0}%)` });
+  });
+  chartHits.set(cv, hits);
+}
+function drawShareChart(list, E) {
+  const cv = $('shareCanvas'); const { g, w, h } = setupCanvas(cv);
+  const top = [...list].sort((a, b) => b.mag - a.mag).slice(0, 4);
+  const rows = top.map((q) => [`M${q.mag.toFixed(1)} ${q.kind === 'giant' ? `${giantName(q.place)} ${yearLabel(q.time)}` : shortPlace(q.place)}`, q.E / E]);
+  if (list.length > 4) rows.push([`Other ${fmt(list.length - 4)}`, 1 - rows.reduce((s, r) => s + r[1], 0)]);
+  const rowH = h / Math.max(5, rows.length), pad = { l: 4, r: 42 }, hits = [];
+  g.font = '600 10.5px Nunito, system-ui, sans-serif'; g.textBaseline = 'middle';
+  rows.forEach(([lab, f], i) => {
+    const yy = i * rowH + rowH / 2, bw = (w - pad.l - pad.r) * 0.45 * f;
+    const x0 = pad.l + (w - pad.l - pad.r) * 0.55;
+    g.fillStyle = INK2; g.textAlign = 'left';
+    let L = lab; while (g.measureText(L).width > x0 - pad.l - 6 && L.length > 4) L = L.slice(0, -2);
+    g.fillText(L === lab ? lab : L + '…', pad.l, yy);
+    g.fillStyle = i === rows.length - 1 && list.length > 4 ? 'rgba(227,198,173,0.35)' : (i === 0 ? '#ff7b2e' : '#ffa04a');
+    rr(g, x0, yy - rowH * 0.3, Math.max(3, bw), rowH * 0.6, 3); g.fill();
+    g.fillStyle = INK; g.fillText(`${Math.round(f * 100)}%`, x0 + Math.max(3, bw) + 5, yy);
+    hits.push({ y0: i * rowH, y1: (i + 1) * rowH, label: `${lab}: ${(f * 100).toFixed(1)}% of the energy` });
+  });
+  chartHits.set(cv, hits);
+}
+function chartHover(e) {
+  const cv = e.currentTarget, hits = chartHits.get(cv) || [], r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const h = hits.find((k) => (k.x0 != null ? x >= k.x0 && x <= k.x1 : y >= k.y0 && y < k.y1));
+  if (h) showTip(e.clientX, e.clientY - 4, esc(h.label)); else hideTip();
+}
+
+/* ---------------- list ---------------- */
+function renderList(vis) {
+  const ul = $('list');
+  const giant = S.view === 'giants';
+  let arr = giant ? [...vis] : vis.filter((q) => q.mag >= Math.max(5, S.magMin));
+  arr.sort(S.listSort === 'latest' ? (a, b) => b.time - a.time : (a, b) => b.mag - a.mag || b.time - a.time);
+  arr = arr.slice(0, 60);
+  $('sideTitle').textContent = giant ? 'The giants' : S.listSort === 'latest' ? 'Latest big quakes' : 'Biggest quakes';
+  if (!arr.length) { ul.innerHTML = `<li class="empty">No quakes match these filters. Try a lower magnitude or turn a depth band back on.</li>`; return; }
+  ul.innerHTML = arr.map((q) => {
+    const w = DATA.waves.has(q.id);
+    const when = giant ? yearLabel(q.time) : ago(q.time, S.endMs);
+    return `<li><button type="button" data-id="${esc(q.id)}" data-kind="${q.kind}"><span class="pl">${esc(giant ? giantName(q.place) : shortPlace(q.place))}</span><span class="magchip ${magClass(q.mag)}">M${q.mag.toFixed(1)}</span><span class="meta"><span>${when}</span><span>${fmt(q.depth)} km deep</span>${w ? '<span class="wv">Real seismograms</span>' : ''}</span></button></li>`;
+  }).join('');
+}
+
+/* ---------------- card ---------------- */
+function wavesPending(q) { return !DATA.waves.has(q.id) && q.mag >= 7 && (q.kind === 'year' || q.time >= Date.UTC(2004, 0, 1)) && S.endMs - q.time < 3 * 86400e3; }
+function quakeById(id) { return DATA.year.find((q) => q.id === id) || DATA.giants.find((q) => q.id === id); }
+function boundaryText(q) {
+  if (q.seg < 0) return 'Inside a plate, far from a boundary';
+  const r = DATA.plates.rows[q.seg], b = DATA.plates.bounds[r[9]];
+  return `${DATA.plates.classes[r[4]]}, ${b[1]} and ${b[2]} plates`;
+}
+function openQuake(q, fly = true) {
+  S.sel = q; S.selKind = 'quake';
+  const pts = q.kind === 'giant' ? giantPts : quakePts, other = q.kind === 'giant' ? quakePts : giantPts;
+  pts.material.uniforms.uSel.value = q.i; other.material.uniforms.uSel.value = -1;
+  const w = DATA.waves.get(q.id);
+  const pager = PAGER[q.alert];
+  const digital = q.time >= Date.UTC(2004, 0, 1);
+  const waveTxt = w ? `Real seismograms from ${w.n} stations are bundled for this quake.` : wavesPending(q) ? 'Real seismograms will be added at a later refresh, once enough stations have reported. Its waves are modeled for now.' : (q.kind === 'giant' && !digital ? 'This quake happened before digital seismometers, so its waves are modeled.' : 'Its waves are modeled from the iasp91 Earth model.');
+  const card = $('card');
+  card.innerHTML = `
+    <div class="ctop">
+      <span class="chip"><span class="dot" style="background:${depthHex(q.depth)}"></span>${BAND_NAME[depthBand(q.depth)]} quake</span>
+      <button type="button" class="xbtn" id="cardClose" aria-label="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      <h3>M${q.mag.toFixed(1)} · ${esc(q.kind === 'giant' ? giantName(q.place) : shortPlace(q.place))}</h3>
+      <div class="sub">${esc(q.kind === 'giant' ? `${dateUTC.format(q.time)}, ${utcFmt.format(q.time)} UTC` : `${q.place} · ${timeFmt.format(q.time)}`)}</div>
+    </div>
+    <div class="cbody">
+      <dl class="facts">
+        <div><dt>Magnitude</dt><dd>${q.mag.toFixed(1)} <small>${esc(q.magType || '')}</small></dd></div>
+        <div><dt>Depth</dt><dd>${fmt(q.depth)} km</dd></div>
+        <div><dt>Energy (estimate)</dt><dd>${fmtTNT(q.E)} <small>TNT</small></dd></div>
+        <div><dt>${q.kind === 'giant' ? 'Year' : 'When'}</dt><dd>${q.kind === 'giant' ? yearLabel(q.time) : ago(q.time, S.endMs)}</dd></div>
+        ${pager ? `<div><dt>USGS impact alert</dt><dd class="pager"><span class="dot" style="background:${pager[1]}"></span>${pager[0]}</dd></div>` : ''}
+        ${q.felt ? `<div><dt>“Did you feel it?” reports</dt><dd>${fmt(q.felt)}</dd></div>` : ''}
+      </dl>
+      <p class="note"><b>Nearest plate boundary:</b> ${esc(boundaryText(q))}.</p>
+      <div class="waveflag"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 8h2l1.5-4 2.5 9 2-7 1.5 4H15"/></svg><span>${waveTxt}</span></div>
+      <div class="cactions">
+        <button type="button" class="btn primary" id="cWave">Watch the waves</button>
+        <button type="button" class="btn" id="cSlice">Slice here</button>
+        ${q.kind === 'year' || digital ? `<a class="btn" href="https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(q.id)}" target="_blank" rel="noopener">USGS page</a>` : ''}
+      </div>
+    </div>`;
+  card.hidden = false;
+  $('cardClose').onclick = closeCard;
+  $('cWave').onclick = () => startWave(q);
+  $('cSlice').onclick = () => enterSlice(q.dir);
+  document.querySelectorAll('#list button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.id === q.id)));
+  if (fly && S.mode === 'globe') flyTo(q.dir, Math.min(camera.position.length(), 2.7));
+}
+function openVolcano(v, fly = true) {
+  S.sel = v; S.selKind = 'volcano';
+  quakePts.material.uniforms.uSel.value = -1; giantPts.material.uniforms.uSel.value = -1;
+  const al = v.alert;
+  const last = v.last == null ? 'No dated eruption' : v.last < 0 ? `${fmt(-v.last)} BCE` : String(v.last);
+  const card = $('card');
+  card.innerHTML = `
+    <div class="ctop">
+      <span class="chip"><span class="dot" style="background:${al ? (al[0] === 'ORANGE' ? 'var(--alert-orange)' : al[0] === 'RED' ? 'var(--alert-red)' : 'var(--alert-yellow)') : '#f2b06a'}"></span>Volcano</span>
+      <button type="button" class="xbtn" id="cardClose" aria-label="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l8 8M10 2l-8 8"/></svg></button>
+      <h3>${esc(v.name)}</h3>
+      <div class="sub">${esc(v.country)} · ${esc(v.type)}</div>
+    </div>
+    <div class="cbody">
+      <dl class="facts">
+        <div><dt>Summit</dt><dd>${v.elev != null ? `${fmt(v.elev)} m` : '–'}</dd></div>
+        <div><dt>Last eruption</dt><dd>${last}</dd></div>
+        ${al ? `<div style="grid-column:1/-1"><dt>Alert level (${esc(al[3])})</dt><dd class="pager"><span class="dot" style="background:${al[0] === 'ORANGE' ? 'var(--alert-orange)' : al[0] === 'RED' ? 'var(--alert-red)' : 'var(--alert-yellow)'}"></span>${esc(al[0][0] + al[0].slice(1).toLowerCase())} · ${esc(al[1][0] + al[1].slice(1).toLowerCase())} <small>issued ${esc(al[2])} UTC</small></dd></div>` : ''}
+      </dl>
+      ${v.summary ? `<p class="note">${esc(v.summary)}</p>` : ''}
+      <div class="cactions"><a class="btn" href="https://volcano.si.edu/volcano.cfm?vn=${v.num}" target="_blank" rel="noopener">Smithsonian page</a></div>
+    </div>`;
+  card.hidden = false;
+  $('cardClose').onclick = closeCard;
+  if (fly && S.mode === 'globe') flyTo(v.dir, Math.min(camera.position.length(), 2.7));
+}
+function closeCard() {
+  $('card').hidden = true; S.sel = null;
+  if (quakePts) { quakePts.material.uniforms.uSel.value = -1; giantPts.material.uniforms.uSel.value = -1; }
+  document.querySelectorAll('#list button[aria-current="true"]').forEach((b) => b.setAttribute('aria-current', 'false'));
+}
+function placeCard() {
+  const card = $('card');
+  if (card.hidden || !S.sel || narrow()) return;
+  const p = screenOf(S.sel.dir, S.selKind === 'quake' && (S.mode === 'slice') ? S.sel.depth : 0);
+  const cw = card.offsetWidth, ch = card.offsetHeight, top = 72, bottom = innerHeight - (S.mode === 'globe' ? $('bottom').offsetHeight + 30 : 30);
+  let x, y;
+  if (!p || !p.vis) { x = innerWidth - cw - 360; y = top + 8; }
+  else { x = p.x + 26; y = p.y - ch / 2; if (x + cw > innerWidth - 360) x = p.x - cw - 26; }
+  x = clamp(x, 280, innerWidth - cw - 16); y = clamp(y, top, Math.max(top, bottom - ch));
+  card.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+}
+
+/* ---------------- picking ---------------- */
+const _v = new THREE.Vector3();
+function screenOf(dir, depthKm = 0) {
+  let local = dir.clone().multiplyScalar(1.0035);
+  if (S.mode === 'slice' && depthKm >= 0) {
+    const q = dir.clone().multiplyScalar(1 - depthKm / R_KM), sd = q.dot(localN) * R_KM;
+    if (Math.abs(sd) < 250) local = q.sub(localN.clone().multiplyScalar(q.dot(localN))).add(localN.clone().multiplyScalar(0.004));
+  }
+  const w = worldOf(local);
+  const camRel = camera.position.clone().sub(w);
+  let vis;
+  if (Math.abs(local.length() - 1.0035) < 1e-6 || S.mode !== 'slice') vis = w.dot(camRel) > 0 && !(S.mode === 'slice' && w.z > 0.02);
+  else vis = camera.position.z > 0;
+  _v.copy(w).project(camera);
+  return { x: (_v.x + 1) / 2 * innerWidth, y: (1 - _v.y) / 2 * innerHeight, vis: vis && _v.z < 1 };
+}
+function pick(x, y) {
+  let best = null, bd = 1e9;
+  if (S.mode === 'globe' || S.mode === 'slice') {
+    for (const q of visibleList()) {
+      const p = screenOf(q.dir, q.depth); if (!p.vis) continue;
+      const d = Math.hypot(p.x - x, p.y - y), rad = 9 + 2.3 * Math.pow(1.55, q.mag - 4.5);
+      if (d < rad && d - rad * 0.3 < bd) { bd = d - rad * 0.3; best = { kind: 'quake', q }; }
+    }
+    if (S.layers.volc && !best) {
+      for (const v of DATA.volcList) {
+        const p = screenOf(v.dir); if (!p.vis) continue;
+        const d = Math.hypot(p.x - x, p.y - y); if (d < 9 && d < bd) { bd = d; best = { kind: 'volcano', v }; }
+      }
+    }
+    if (!best && S.layers.plates && S.mode === 'globe') {
+      const m = plateObjs.mids; let bi = -1, bdd = 8;
+      for (let i = 0; i < m.length / 3; i++) {
+        _v.set(m[i * 3], m[i * 3 + 1], m[i * 3 + 2]);
+        const w = worldOf(_v); if (w.dot(camera.position.clone().sub(w)) <= 0) continue;
+        w.project(camera); const sx = (w.x + 1) / 2 * innerWidth, sy = (1 - w.y) / 2 * innerHeight;
+        const d = Math.hypot(sx - x, sy - y); if (d < bdd) { bdd = d; bi = i; }
+      }
+      if (bi >= 0) best = { kind: 'plate', i: bi };
+    }
+  }
+  return best;
+}
+
+/* ---------------- tooltip ---------------- */
+function showTip(x, y, html) { const t = $('tip'); t.innerHTML = html; t.hidden = false; t.style.left = `${x}px`; t.style.top = `${y}px`; }
+function hideTip() { $('tip').hidden = true; }
+function tipFor(h) {
+  if (h.kind === 'quake') { const q = h.q; return `<b>M${q.mag.toFixed(1)}</b> ${esc(shortPlace(q.place))} <small>· ${fmt(q.depth)} km deep · ${q.kind === 'giant' ? yearLabel(q.time) : ago(q.time, S.endMs)}</small>`; }
+  if (h.kind === 'volcano') { const v = h.v; return `<b>${esc(v.name)}</b> <small>· volcano · ${esc(v.country)}</small>`; }
+  const r = DATA.plates.rows[h.i], b = DATA.plates.bounds[r[9]], gp = PLATE_GROUP[r[4]];
+  const mot = gp === 0 ? `closing ${fmt(Math.abs(r[7]))} mm/yr` : gp === 1 ? `opening ${fmt(Math.abs(r[7]))} mm/yr` : `sliding ${fmt(Math.abs(r[8]))} mm/yr`;
+  return `<b>${esc(DATA.plates.classes[r[4]])}</b> <small>· ${esc(b[1])} / ${esc(b[2])} · ${mot}</small>`;
+}
+
+/* ---------------- slice mode ---------------- */
+let sliceTurn = 0, slicePivot = null;
+function enterSlice(pivot) {
+  if (S.mode === 'wave') return;
+  const keep = S.sel && S.selKind === 'quake' ? S.sel : null;
+  closeCard();
+  if (keep) (keep.kind === 'giant' ? giantPts : quakePts).material.uniforms.uSel.value = keep.i;
+  slicePivot = (pivot ? pivot.clone() : latLonDirFromCamera());
+  sliceTurn = 0; $('turnRange').value = 0;
+  setMode('slice');
+  const tilt = 0.22, tgt = new THREE.Vector3(0, 0.915, 0), D = narrow() ? 0.95 : 0.66;
+  controls.minDistance = 0.18;
+  moveTo(sliceQuat(slicePivot, 0), tgt.clone().add(new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)).multiplyScalar(D)), 1500, null, tgt);
+}
+function closeCardIfFar() { if (S.selKind === 'volcano') closeCard(); }
+function latLonDirFromCamera() { return camera.position.clone().applyQuaternion(earth.quaternion.clone().invert()).normalize(); }
+function exitSlice() {
+  if (S.mode !== 'slice') return;
+  const piv = slicePivot || new THREE.Vector3(0, 1, 0);
+  setMode('globe');
+  controls.minDistance = 1.28;
+  moveTo(new THREE.Quaternion(), piv.clone().multiplyScalar(areaDist()), 1300);
+}
+function setTurn(deg) {
+  sliceTurn = deg;
+  const piv = S.mode === 'wave' ? W.q.dir : slicePivot;
+  if (!piv) return;
+  earth.quaternion.copy(sliceQuat(piv, deg)); updateLocalN(); paintPlates();
+  if (S.mode === 'wave') W.dirty = true;
+}
+
+/* ---------------- modes ---------------- */
+function setMode(m) {
+  S.mode = m;
+  if (m !== 'intro' && !$('intro').hidden) { $('intro').classList.add('gone'); setTimeout(() => { $('intro').hidden = true; }, 650); }
+  const ui = $('ui');
+  ui.className = `m-${m}`;
+  const sliced = m === 'slice' || m === 'wave';
+  globe.material.clippingPlanes = sliced ? [clipPlane] : [];
+  globe.material.needsUpdate = true;
+  cap.visible = sliced; glow.visible = !sliced;
+  for (const p of [quakePts, giantPts]) p.material.uniforms.uSlice.value = m === 'slice' ? 1 : 0;
+  volcPts.material.uniforms.uSlice.value = sliced ? 1 : 0;
+  quakePts.material.uniforms.uSlice.value = m === 'slice' ? 1 : 0;
+  if (m === 'wave') { quakePts.visible = false; giantPts.visible = false; volcPts.visible = false; }
+  else { applyFilters(); }
+  $('sliceBtn').setAttribute('aria-pressed', String(m === 'slice'));
+  $('turn').querySelector('label').textContent = m === 'wave' ? 'Turn the slice' : 'Turn the slice · quakes within 250 km';
+  $('sliceExit').textContent = 'Close slice'; $('sliceExit').hidden = m === 'wave';
+  controls.autoRotate = false;
+  drawCap(); paintPlates();
+  hideTip();
+}
+
+/* ---------------- timeline (intro + year replay) ---------------- */
+const TL = { on: false, kind: '', dur: 30, t: 0, playing: false, ptr: 0, E: 0, maxQ: null, count: 0, big: [], cum: null };
+function startTimeline(kind) {
+  closeCard();
+  if (S.mode === 'slice') { earth.quaternion.identity(); updateLocalN(); controls.target.set(0, 0, 0); controls.minDistance = 1.28; }
+  if (S.view !== 'year') { S.view = 'year'; document.querySelectorAll('#viewSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === 'year'))); }
+  Object.assign(TL, { on: true, kind, dur: kind === 'intro' ? 8 : 30, t: 0, playing: true, ptr: 0, E: 0, maxQ: null, count: 0, big: [] });
+  setMode(kind);
+  heat.fill(0);
+  heatFor(DATA.year.filter(passes)); const hn = heatNorm; heat.fill(0); heatNorm = hn;
+  const u = quakePts.material.uniforms;
+  u.uStart.value = -365 * 86400 - 1; u.uAgeSpan.value = 365 * 86400 * 0.6; u.uFlash.value = 365 * 86400 / TL.dur * 0.55; u.uLive.value = 0;
+  quakePts.visible = true; giantPts.visible = false;
+  if (kind === 'replay') {
+    TL.cum = buildCum();
+    $('rBigChips') && ($('rBigChips').innerHTML = '');
+    $('rPlay').textContent = 'Pause';
+  }
+  const camD = areaDist();
+  if (!reduceMotion) moveTo(new THREE.Quaternion(), dirOf(10, kind === 'intro' ? 172 : 150).multiplyScalar(camD), kind === 'intro' ? 10 : 1200, () => { controls.autoRotate = true; controls.autoRotateSpeed = kind === 'intro' ? -1.1 : -0.55; });
+  timelineSeek(0);
+}
+function buildCum() {
+  const list = DATA.year.filter(passes); let s = 0;
+  return { list, cum: list.map((q) => (s += q.E)), total: s };
+}
+function timelineSeek(t) {
+  TL.t = clamp(t, 0, 1); TL.ptr = 0; TL.E = 0; TL.count = 0; TL.maxQ = null; heat.fill(0); TL.big = [];
+  clearCallouts();
+  advanceTimeline(true);
+}
+function tlNow() { return -365 * 86400 + TL.t * 365 * 86400; }
+function advanceTimeline(silent = false) {
+  const now = tlNow(), list = DATA.year;
+  while (TL.ptr < list.length && list[TL.ptr].rel <= now) {
+    const q = list[TL.ptr++];
+    if (!passes(q)) continue;
+    addHeat(q, heatW(q)); TL.E += q.E; TL.count++;
+    if (!TL.maxQ || q.mag > TL.maxQ.mag) TL.maxQ = q;
+    if (TL.kind === 'replay' && q.mag >= 7) { TL.big.push(q); if (!silent) spawnCallout(q); }
+  }
+  quakePts.material.uniforms.uNow.value = now;
+  paintPlates();
+  if (TL.kind === 'intro') {
+    $('introCount').textContent = fmt(TL.count);
+    $('introDate').textContent = `quakes · ${dateFmt.format(S.endMs + now * 1000)}`;
+  } else {
+    $('rDate').textContent = dateFmt.format(S.endMs + now * 1000);
+    $('rCount').textContent = fmt(TL.count);
+    $('rBig').textContent = TL.maxQ ? `M${TL.maxQ.mag.toFixed(1)}` : '–';
+    $('rEnergy').textContent = TL.E ? fmtTNT(TL.E) : '0';
+    $('rShare').textContent = TL.maxQ ? `${Math.round(TL.maxQ.E / TL.E * 100)}%` : '–';
+    renderBigChips();
+    drawEnergy();
+  }
+}
+function renderBigChips() {
+  const el = $('rNote');
+  if (!TL.big.length) { el.textContent = 'Thousands of small quakes barely move the line. A single big one makes it jump. Tap a big quake as it flashes to watch its waves.'; return; }
+  const key = TL.big.map((q) => q.id).join();
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  const recent = TL.big.slice(-4).reverse();
+  el.innerHTML = `<div class="chips one-line"><span class="note">Big ones so far (${TL.big.length}), tap to watch the waves:</span>${recent.map((q) => `<button type="button" data-id="${esc(q.id)}">M${q.mag.toFixed(1)} ${esc(shortPlace(q.place))}</button>`).join('')}</div>`;
+}
+function tickTimeline(dt) {
+  if (!TL.on || !TL.playing) return;
+  TL.t = Math.min(1, TL.t + dt / TL.dur);
+  advanceTimeline();
+  if (TL.t >= 1) {
+    TL.playing = false;
+    if (TL.kind === 'intro') finishIntro(false);
+    else { $('rPlay').textContent = 'Play'; controls.autoRotate = false; }
+  }
+}
+function finishIntro(instant) {
+  TL.on = false; TL.playing = false;
+  $('intro').classList.add('gone');
+  setTimeout(() => { $('intro').hidden = true; }, instant ? 0 : 650);
+  setMode('globe');
+  controls.autoRotate = false;
+  heatFor(visibleList()); paintPlates();
+  camera.position.setLength(areaDist());
+  if (instant) camera.position.copy(dirOf(10, -150).multiplyScalar(areaDist()));
+  showToast('The brightest lines circle the Pacific: the Ring of Fire. Click any dot, or try Year in 30 seconds.');
+}
+function endReplay() {
+  TL.on = false; TL.playing = false; clearCallouts();
+  setMode('globe');
+}
+const callouts = [];
+function spawnCallout(q) {
+  const el = document.createElement('div'); el.className = 'callout';
+  el.innerHTML = `<b>M${q.mag.toFixed(1)}</b> ${esc(shortPlace(q.place))}<small>${dateFmt.format(q.time)} · tap to watch its waves</small>`;
+  el.onclick = (e) => { e.stopPropagation(); startWave(q); };
+  $('callouts').appendChild(el);
+  callouts.push({ el, q, born: performance.now() });
+}
+function clearCallouts() { callouts.splice(0).forEach((c) => c.el.remove()); }
+function updateCallouts(now) {
+  for (let k = callouts.length - 1; k >= 0; k--) {
+    const c = callouts[k], age = (now - c.born) / 1000;
+    if (age > 2.6 || S.mode !== 'replay') { c.el.remove(); callouts.splice(k, 1); continue; }
+    const p = screenOf(c.q.dir);
+    c.el.style.left = `${p.x}px`; c.el.style.top = `${p.y}px`;
+    c.el.style.opacity = p.vis ? String(age > 2.1 ? (2.6 - age) / 0.5 : 1) : '0';
+    c.el.style.pointerEvents = p.vis ? 'auto' : 'none';
+  }
+}
+function drawEnergy() {
+  const cv = $('energyCanvas'); const { g, w, h } = setupCanvas(cv);
+  const C = TL.cum; if (!C || !C.total) return;
+  const pad = { l: 46, r: 10, t: 10, b: 18 }, pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+  const x = (rel) => pad.l + (rel + 365 * 86400) / (365 * 86400) * pw, y = (e) => pad.t + ph - e / C.total * ph;
+  g.font = '600 10.5px Nunito, system-ui, sans-serif';
+  // grid + y labels in TNT
+  g.textBaseline = 'middle';
+  for (let k = 0; k <= 4; k++) {
+    const e = C.total * k / 4; g.strokeStyle = GRID; g.beginPath(); g.moveTo(pad.l, y(e)); g.lineTo(w - pad.r, y(e)); g.stroke();
+    g.fillStyle = INK3; g.textAlign = 'right'; g.fillText(k ? fmtTNT(e) : '0', pad.l - 6, y(e));
+  }
+  // month ticks
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const d0 = new Date(S.startMs);
+  for (let m = 1; m <= 12; m += 2) {
+    const dt = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + m, 1), rel = (dt - S.endMs) / 1000;
+    if (rel > 0) break;
+    g.fillStyle = INK3; g.fillText(new Intl.DateTimeFormat(undefined, { month: 'short' }).format(dt), x(rel), h - 4);
+  }
+  // future part, faint; past part, bright
+  const now = tlNow();
+  const path = (upto) => {
+    g.beginPath(); g.moveTo(x(-365 * 86400), y(0)); let last = 0;
+    for (let i = 0; i < C.list.length; i++) { const q = C.list[i]; if (q.rel > upto) break; g.lineTo(x(q.rel), y(last)); g.lineTo(x(q.rel), y(C.cum[i])); last = C.cum[i]; }
+    g.lineTo(x(upto), y(last));
+    return last;
+  };
+  g.strokeStyle = 'rgba(255,200,158,0.16)'; g.lineWidth = 1.5; path(0); g.stroke();
+  const cur = path(now);
+  g.lineTo(x(now), y(0)); g.lineTo(x(-365 * 86400), y(0)); g.closePath();
+  const gr = g.createLinearGradient(0, pad.t, 0, pad.t + ph); gr.addColorStop(0, 'rgba(255,123,46,0.35)'); gr.addColorStop(1, 'rgba(255,123,46,0.03)');
+  g.fillStyle = gr; g.fill();
+  g.strokeStyle = '#ff9445'; g.lineWidth = 2; path(now); g.stroke();
+  // label the biggest steps that have happened
+  const steps = C.list.map((q, i) => [q, i]).filter(([q]) => q.rel <= now && q.E >= C.total * 0.035).sort((a, b) => b[0].E - a[0].E).slice(0, 6);
+  g.textAlign = 'left'; g.textBaseline = 'bottom';
+  const placed = [];
+  for (const [q, i] of steps) {
+    const xx = Math.min(x(q.rel) + 4, w - pad.r - 34), yy = y(C.cum[i]) - 2;
+    if (placed.some(([px, py]) => Math.abs(px - xx) < 40 && Math.abs(py - yy) < 13)) continue;
+    placed.push([xx, yy]); g.fillStyle = INK; g.fillText(`M${q.mag.toFixed(1)}`, xx, yy);
+  }
+  g.strokeStyle = 'rgba(255,240,220,0.75)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x(now), pad.t); g.lineTo(x(now), pad.t + ph); g.stroke();
+  g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(x(now), y(cur), 3.5, 0, Math.PI * 2); g.fill();
+  $('rEnergyNote').textContent = `${fmtTNT(C.total, true)} over the year`;
+}
+
+/* =========================================================================
+   Wave race
+   ========================================================================= */
+const W = { on: false, q: null, t: 0, T: 6000, playing: false, speed: 120, ready: false, rays: null, rec: null, dirty: true, stations: [], staPts: null, giant: false };
+let VEL = null; // { dr, vp:Float32Array, vs:Float32Array }
+function buildVel() {
+  const prof = DATA.earth.profile; const dr = 2, n = Math.ceil(R_KM / dr) + 2;
+  const vp = new Float32Array(n), vs = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const r = k * dr, d = R_KM - r;
+    // find layer: last profile index with depth <= d, interpolate to next with depth >= d (skip zero-length discontinuities)
+    let i = 0; while (i + 1 < prof.length && prof[i + 1][0] <= d) i++;
+    let j = i + 1; if (j >= prof.length) j = i;
+    const a = prof[i], b = prof[j];
+    const f = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 0;
+    vp[k] = lerp(a[1], b[1], clamp(f, 0, 1)); vs[k] = lerp(a[2], b[2], clamp(f, 0, 1));
+  }
+  VEL = { dr, vp, vs };
+}
+function vAt(arr, r) { const k = clamp(Math.round(r / VEL.dr), 0, arr.length - 1); return arr[k]; }
+function traceRays(depth, Tmax) {
+  if (!VEL) buildVel();
+  const NR = narrow() ? 300 : 460, dtS = 5, K = Math.floor(Tmax / dtS) + 1;
+  const out = {};
+  for (const ph of ['P', 'S']) {
+    const varr = ph === 'P' ? VEL.vp : VEL.vs;
+    const rs = new Float32Array(NR * K).fill(-1), th = new Float32Array(NR * K), code = new Uint8Array(NR * K);
+    const r0 = R_KM - Math.max(depth, 0.5), v0 = vAt(varr, r0);
+    for (let n = 0; n < NR; n++) {
+      const i0 = (n + 0.5) / NR * Math.PI; // 0 = straight down, PI = straight up
+      const p = r0 * Math.sin(i0) / v0;
+      let r = r0, a = 0, t = 0, dir = i0 < Math.PI / 2 ? -1 : 1, bounces = 0, core = 0;
+      let k = 0;
+      rs[n * K] = r; th[n * K] = 0; code[n * K] = 0; k = 1;
+      let guard = 0, dead = false;
+      while (k < K && guard++ < 200000 && !dead) {
+        const v = vAt(varr, r);
+        let si = p * v / r; if (si > 1) si = 1;
+        const ci = Math.sqrt(Math.max(0, 1 - si * si));
+        const ds = ci < 0.08 ? 4 : 11;
+        let rn = r + dir * ci * ds;
+        const an = a + si * ds / r, tn = t + ds / v;
+        if (rn >= R_KM) { rn = R_KM - (rn - R_KM); dir = -1; bounces++; if (bounces > 2) dead = true; }
+        if (ph === 'S' && rn < CMB) break;
+        if (ph === 'P' && rn < CMB && !(core & 1)) core |= 1;
+        if (ph === 'P' && rn < ICB && !(core & 2)) core |= 2;
+        const vn = vAt(varr, rn);
+        if (p * vn / rn > 1.0) { dir = -dir; rn = r; }
+        // record crossings of the time grid
+        while (k < K && k * dtS <= tn) {
+          const f = (k * dtS - t) / (tn - t);
+          rs[n * K + k] = lerp(r, rn, f); th[n * K + k] = lerp(a, an, f); code[n * K + k] = bounces * 4 + core;
+          k++;
+        }
+        r = rn; a = an; t = tn;
+        if (t > Tmax || dead) break;
+      }
+    }
+    out[ph] = { rs, th, code, NR, K, dtS };
+  }
+  return out;
+}
+function ttRow(ph, depth) {
+  const D = DATA.earth.depths, T = DATA.earth.tt[ph];
+  let i = 0; while (i + 1 < D.length && D[i + 1] <= depth) i++;
+  const j = Math.min(i + 1, D.length - 1), f = D[j] > D[i] ? clamp((depth - D[i]) / (D[j] - D[i]), 0, 1) : 0;
+  return T[i].map((a, k) => { const b = T[j][k]; if (a == null && b == null) return null; if (a == null) return b; if (b == null) return a; return lerp(a, b, f); });
+}
+function ttAt(row, dist) {
+  const k = Math.floor(dist), f = dist - k, a = row[clamp(k, 0, 180)], b = row[clamp(k + 1, 0, 180)];
+  if (a == null || b == null) return f < 0.5 ? a : b;
+  return lerp(a, b, f);
+}
+function buildTTTexture(q) {
+  const P = ttRow('P', q.depth), Sx = ttRow('S', q.depth), K = ttRow('PKP', q.depth);
+  const tex = globe.material.uniforms.uTT.value, d = tex.image.data;
+  for (let i = 0; i <= 360; i++) {
+    const dist = i / 2;
+    const p = ttAt(P, dist), s = ttAt(Sx, dist), pk = dist >= 110 ? ttAt(K, dist) : null;
+    d[i * 4] = p ?? -1; d[i * 4 + 1] = s ?? -1; d[i * 4 + 2] = pk ?? -1; d[i * 4 + 3] = 0;
+  }
+  tex.needsUpdate = true;
+  W.tt = { P, S: Sx, PKP: K, PP: ttRow('PP', q.depth), SS: ttRow('SS', q.depth), SKS: ttRow('SKS', q.depth) };
+}
+function firstP(dist) { const p = ttAt(W.tt.P, dist); if (p != null) return p; return dist >= 110 ? ttAt(W.tt.PKP, dist) : null; }
+
+async function startWave(q) {
+  if (TL.on) { TL.on = false; TL.playing = false; clearCallouts(); }
+  closeCard();
+  W.q = q; W.on = true; W.t = 0; W.playing = !reduceMotion; W.ready = false; W.rec = null; W.giant = q.mag >= 8.5;
+  W.T = W.giant ? 240 * 60 : 100 * 60;
+  setMode('wave');
+  sliceTurn = 0; $('turnRange').value = 0;
+  $('waveEyebrow').textContent = `Wave race · ${q.kind === 'giant' ? dateUTC.format(q.time) + ' (UTC)' : timeFmt.format(q.time)}`;
+  $('waveTitle').textContent = `M${q.mag.toFixed(1)} · ${q.kind === 'giant' ? `${giantName(q.place)}, ${yearLabel(q.time)}` : shortPlace(q.place)}`;
+  $('wPlay').textContent = W.playing ? 'Pause' : 'Play';
+  $('scrub').max = W.T; $('scrub').value = 0;
+  $('waveSentence').textContent = 'Tracing waves through the Earth model…';
+  buildTTTexture(q);
+  const u = globe.material.uniforms; u.uWaveOn.value = 1; u.uEpi.value.copy(q.dir); u.uWaveT.value = 0;
+  const camD = areaDist(), tilt = 0.36;
+  controls.minDistance = 1.28;
+  moveTo(sliceQuat(q.dir, 0), new THREE.Vector3(0, Math.sin(tilt), Math.cos(tilt)).multiplyScalar(camD), 1500);
+  await new Promise((r) => setTimeout(r, 30));
+  W.rays = traceRays(q.depth, Math.min(W.T, 3600));
+  W.ready = true; W.dirty = true;
+  // stations + record section
+  const meta = DATA.waves.get(q.id);
+  setupRecord(null);
+  if (meta) {
+    try {
+      const rec = await getJSON(`data/waves/${q.id}.json`);
+      if (W.q !== q) return;
+      setupRecord(rec);
+    } catch (e) { $('recNote').textContent = 'The recordings for this quake did not load. The model curves still show when each wave arrives.'; }
+  }
+}
+function setupRecord(rec) {
+  if (W.staPts) { earth.remove(W.staPts); W.staPts.geometry.dispose(); W.staPts = null; }
+  W.stations = [];
+  const q = W.q;
+  if (rec) {
+    const mu = rec.mu;
+    W.rec = { ...rec, data: rec.traces.map((b64) => { const bin = atob(b64), y = new Float32Array(bin.length); for (let i = 0; i < bin.length; i++) { let v = bin.charCodeAt(i); if (v > 127) v -= 256; const z = v / 127; y[i] = Math.sign(z) * (Math.pow(1 + mu, Math.abs(z)) - 1) / mu; } return y; }) };
+    W.stations = rec.stations.map((s) => ({ ...s, dir: dirOf(s.lat, s.lon), tp: firstP(s.dist), ts: ttAt(W.tt.S, s.dist) }));
+    const n = W.stations.length, pos = new Float32Array(n * 3), tp = new Float32Array(n), ts = new Float32Array(n);
+    W.stations.forEach((s, i) => { pos.set([s.dir.x, s.dir.y, s.dir.z], i * 3); tp[i] = s.tp ?? -1; ts[i] = s.ts ?? -1; });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aTp', new THREE.BufferAttribute(tp, 1)); g.setAttribute('aTs', new THREE.BufferAttribute(ts, 1));
+    W.staPts = new THREE.Points(g, new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uPR: { value: PR }, uScale: { value: 1 }, uN: { value: localN } }, vertexShader: staVS, fragmentShader: staFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    W.staPts.frustumCulled = false; W.staPts.renderOrder = 6;
+    earth.add(W.staPts);
+    $('recTitle').textContent = `Real seismograms · ${n} stations`;
+    $('recSub').textContent = 'distance from the quake, top to bottom';
+    const venezuela = q.id === 'us6000t7zc';
+    $('recNote').textContent = venezuela
+      ? 'An M7.5 struck about 30 seconds later and 150 km away, so its waves fill these recordings too.'
+      : 'Each line is one real seismometer, placed by its distance from the quake. Coloured curves show when the model says each wave should arrive.';
+  } else {
+    W.rec = null;
+    $('recTitle').textContent = 'Model arrival times';
+    $('recSub').textContent = 'distance from the quake, top to bottom';
+    $('recNote').textContent = q.kind === 'giant' && q.time < Date.UTC(2004, 0, 1)
+      ? 'This quake predates digital seismometers, so there are no recordings to show. The curves show when each wave would arrive.'
+      : wavesPending(q) ? 'Recordings for this quake will be added at a later refresh, once enough stations have reported. The curves show when the model says each wave arrives.'
+      : 'No recordings are bundled for this quake. The curves show when the model says each wave arrives at each distance.';
+  }
+  W.recImg = null; W.recKey = ''; W.dirty = true;
+}
+function exitWave() {
+  W.on = false; W.ready = false;
+  globe.material.uniforms.uWaveOn.value = 0;
+  if (W.staPts) { earth.remove(W.staPts); W.staPts = null; }
+  const q = W.q;
+  setMode('globe');
+  moveTo(new THREE.Quaternion(), q.dir.clone().multiplyScalar(Math.min(areaDist(), 2.9)), 1400, () => openQuake(q, false));
+}
+function tickWave(dt) {
+  if (!W.on) return;
+  if (W.playing && W.ready) { W.t = Math.min(W.T, W.t + dt * W.speed); W.dirty = true; if (W.t >= W.T) { W.playing = false; $('wPlay').textContent = 'Replay'; } }
+  if (!W.dirty) return;
+  W.dirty = false;
+  globe.material.uniforms.uWaveT.value = W.t;
+  if (W.staPts) W.staPts.material.uniforms.uT.value = W.t;
+  const m = Math.floor(W.t / 60), s = Math.floor(W.t % 60);
+  $('waveClock').textContent = `${m}:${String(s).padStart(2, '0')}`;
+  if (document.activeElement !== $('scrub')) $('scrub').value = W.t;
+  drawCap();
+  drawRecord();
+  updateSentence();
+}
+function updateSentence() {
+  const q = W.q, t = W.t, el = $('waveSentence');
+  if (!W.ready) return;
+  const P0 = firstP(0.5) ?? 0;
+  const vp0 = vAt(VEL.vp, R_KM - Math.max(q.depth, 0.5)), vs0 = vAt(VEL.vs, R_KM - Math.max(q.depth, 0.5));
+  let txt;
+  const n = W.stations.length;
+  const nP = W.stations.filter((s) => s.tp != null && t >= s.tp).length, nS = W.stations.filter((s) => s.ts != null && t >= s.ts).length;
+  const surfKm = t * SURF_V;
+  const pEdge = ttAt(W.tt.P, 98);
+  if (t < Math.max(20, P0)) txt = `The fault breaks ${fmt(q.depth)} km down. P waves leave first at about ${nf1.format(vp0)} km/s, with S waves behind them at ${nf1.format(vs0)} km/s.`;
+  else {
+    const parts = [];
+    if (n) parts.push(`P waves have reached <em>${nP} of ${n}</em> stations${nS ? `, and the slower S waves ${nS}` : ''}.`);
+    if (pEdge && t > pEdge && t < pEdge + 900) parts.push('Past about 100°, the core bends P waves away, leaving a shadow zone. S waves cannot cross the liquid outer core at all.');
+    else if (t > 1700 && surfKm < CIRC / 2) parts.push(`Surface waves are slow but usually the strongest. They have travelled ${fmt(surfKm)} km around the planet.`);
+    else if (surfKm >= CIRC / 2 && surfKm < CIRC) parts.push('The surface waves have reached the far side of the Earth.');
+    else if (surfKm >= CIRC) parts.push(`The surface waves have now circled the whole planet${surfKm >= 2 * CIRC ? ' twice' : ' once'}.`);
+    else if (t < 400) parts.push(`P waves speed up as they dive, reaching about ${nf1.format(vAt(VEL.vp, CMB + 5))} km/s near the core.`);
+    if (!n && !parts.length) parts.push('Follow the fronts through the slice.');
+    txt = parts.join(' ');
+  }
+  if (el.dataset.t !== txt) { el.innerHTML = txt; el.dataset.t = txt; }
+}
+const PH_COL = { P: [255, 196, 81], S: [255, 112, 144] };
+function drawWaveFronts(g, N) {
+  const rays = W.rays, t = W.t;
+  // station ticks on the rim
+  for (const s of W.stations) {
+    const v = s.dir.clone().applyQuaternion(earth.quaternion);
+    const side = v.x >= 0 ? 1 : -1, th = side * s.dist * Math.PI / 180;
+    const [x0, y0] = capXY(R_KM * 0.985, th), [x1, y1] = capXY(R_KM * 1.0, th);
+    const hitS = s.ts != null && t >= s.ts, hitP = s.tp != null && t >= s.tp;
+    g.strokeStyle = hitS ? '#ff7090' : hitP ? '#ffc451' : 'rgba(255,230,200,0.35)';
+    g.lineWidth = N / 420; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  }
+  g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+  if (t <= 3600) for (const ph of ['P', 'S']) {
+    const o = rays[ph]; const k = Math.floor(t / o.dtS), f = (t - k * o.dtS) / o.dtS;
+    if (k >= o.K - 1) continue;
+    const col = PH_COL[ph];
+    for (const side of [1, -1]) {
+      let prev = null;
+      const segs = [[], [], []];
+      for (let n = 0; n < o.NR; n++) {
+        const i0 = n * o.K + k, r0 = o.rs[i0], r1 = o.rs[i0 + 1];
+        if (r0 < 0 || r1 < 0) { prev = null; continue; }
+        const r = lerp(r0, r1, f), a = lerp(o.th[i0], o.th[i0 + 1], f) * side, cd = o.code[i0];
+        const pt = capXY(r, a);
+        if (prev && prev.cd === cd && Math.hypot(pt[0] - prev.pt[0], pt[1] - prev.pt[1]) < N * 0.045) segs[Math.min(2, cd >> 2)].push(prev.pt, pt);
+        prev = { pt, cd };
+      }
+      segs.forEach((arr, b) => {
+        if (!arr.length) return;
+        const al = b === 0 ? 0.95 : b === 1 ? 0.5 : 0.28;
+        for (const [lw, aa] of [[N / 70, 0.13], [N / 230, 1.0]]) {
+          g.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${al * aa})`; g.lineWidth = lw; g.beginPath();
+          for (let i = 0; i < arr.length; i += 2) { g.moveTo(arr[i][0], arr[i][1]); g.lineTo(arr[i + 1][0], arr[i + 1][1]); }
+          g.stroke();
+        }
+      });
+    }
+  }
+  // surface waves riding the rim (with laps)
+  const ang = (t * SURF_V) / R_KM;
+  for (let lap = 0; lap < 3; lap++) {
+    for (const side of [1, -1]) {
+      const a = lap % 2 === 0 ? ang - lap * Math.PI : (lap + 1) * Math.PI - ang; // R1, R2 (coming back), R3
+      const th = (lap === 0 ? ang : lap === 1 ? 2 * Math.PI - ang : ang - 2 * Math.PI);
+      if (th < 0 || th > Math.PI) continue;
+      const al = lap === 0 ? 1 : lap === 1 ? 0.65 : 0.45;
+      const [x, y] = capXY(R_KM, side * th);
+      const gr = g.createRadialGradient(x, y, 0, x, y, N / 40);
+      gr.addColorStop(0, `rgba(114,207,240,${0.9 * al})`); gr.addColorStop(1, 'rgba(114,207,240,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, N / 40, 0, Math.PI * 2); g.fill();
+      void a;
+    }
+  }
+  g.restore();
+  // epicenter marker
+  const [ex, ey] = capXY(R_KM - W.q.depth, 0);
+  g.fillStyle = '#fff2e6'; g.beginPath(); g.arc(ex, ey, N / 160, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = 'rgba(255,242,230,0.6)'; g.lineWidth = N / 600; g.beginPath(); g.arc(ex, ey, N / 90, 0, Math.PI * 2); g.stroke();
+}
+
+/* ---------- record section ---------- */
+function drawRecord() {
+  const cv = $('recordCanvas'); const { g, w, h } = setupCanvas(cv);
+  const pad = { l: 40, r: 34, t: 8, b: 34 }, pw = w - pad.l - pad.r, ph = h - pad.t - pad.b, T = W.T;
+  const X = (t) => pad.l + t / T * pw, Y = (d) => pad.t + d / 180 * ph;
+  g.font = '600 10.5px Nunito, system-ui, sans-serif';
+  // grid
+  g.textBaseline = 'middle'; g.textAlign = 'right';
+  for (let d = 0; d <= 180; d += 30) { g.strokeStyle = GRID; g.beginPath(); g.moveTo(pad.l, Y(d)); g.lineTo(w - pad.r, Y(d)); g.stroke(); g.fillStyle = INK3; g.fillText(`${d}°`, pad.l - 6, Y(d)); }
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const tstep = T > 7200 ? 1800 : 600;
+  for (let t = 0; t <= T; t += tstep) { g.strokeStyle = GRID; g.beginPath(); g.moveTo(X(t), pad.t); g.lineTo(X(t), pad.t + ph); g.stroke(); g.fillStyle = INK3; g.fillText(`${t / 60}`, X(t), pad.t + ph + 14); }
+  g.fillStyle = INK3; g.fillText('minutes after the quake', pad.l + pw / 2, h - 3);
+  // traces (pre-rendered once per gain/size)
+  const key = `${w}x${h}|${$('gain').value}|${W.q.id}|${!!W.rec}`;
+  if (W.rec && W.recKey !== key) {
+    W.recKey = key;
+    const off = document.createElement('canvas'), dpr = Math.min(devicePixelRatio || 1, 2);
+    off.width = Math.round(w * dpr); off.height = Math.round(h * dpr);
+    const o = off.getContext('2d'); o.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const gam = 1 - 0.78 * Number($('gain').value), amp = Math.min(ph / W.rec.stations.length * 1.25, 14);
+    o.strokeStyle = 'rgba(255,236,218,0.85)'; o.lineWidth = 0.8;
+    W.rec.data.forEach((y, i) => {
+      const d = W.rec.stations[i].dist, y0 = Y(d), sps = W.rec.sps, n = y.length;
+      const stepPx = Math.max(1, Math.floor(n / (pw * 1.5)));
+      o.beginPath();
+      for (let k = 0; k < n; k += stepPx) {
+        let mx = 0; for (let j = k; j < Math.min(n, k + stepPx); j++) if (Math.abs(y[j]) > Math.abs(mx)) mx = y[j];
+        const v = Math.sign(mx) * Math.pow(Math.abs(mx), gam);
+        const xx = X(k / sps), yy = y0 - v * amp;
+        if (k === 0) o.moveTo(xx, yy); else o.lineTo(xx, yy);
+      }
+      o.stroke();
+    });
+    W.recImg = off;
+  }
+  if (W.rec && W.recImg) {
+    const xc = X(W.t);
+    g.save(); g.globalAlpha = 0.1; g.drawImage(W.recImg, 0, 0, w, h); g.restore();
+    g.save(); g.beginPath(); g.rect(0, 0, xc, h); g.clip(); g.drawImage(W.recImg, 0, 0, w, h); g.restore();
+  }
+  // model curves
+  const curve = (row, col, dash, lw, label, minD = 0, maxD = 180, labelStart = false) => {
+    if (!row) return;
+    g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); let started = false, lastPt = null;
+    let firstPt = null;
+    for (let d = minD; d <= maxD; d += 1) { const t = row[d]; if (t == null || t > T) { started = false; continue; } const x = X(t), y = Y(d); if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y); lastPt = [x, y]; if (!firstPt) firstPt = [x, y]; }
+    if (labelStart && firstPt) lastPt = [firstPt[0] - 34, firstPt[1] + 10];
+    g.stroke(); g.setLineDash([]);
+    if (label && lastPt) { g.fillStyle = col; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(label, Math.min(lastPt[0] + 4, w - pad.r + 2), Math.min(lastPt[1], pad.t + ph - 6)); }
+  };
+  const TTs = W.tt;
+  g.font = '800 11px Nunito, system-ui, sans-serif';
+  curve(TTs.P, '#c4851c', [], 1.6, 'P', 0, 100);
+  curve(TTs.PKP, '#c4851c', [5, 3], 1.4, 'PKP', 110, 180);
+  curve(TTs.PP, 'rgba(196,133,28,0.55)', [2, 3], 1.1, 'PP', 0, 180);
+  curve(TTs.S, '#e24a6c', [], 1.6, 'S', 0, 100);
+  curve(TTs.SS, 'rgba(226,74,108,0.55)', [2, 3], 1.1, 'SS', 0, 180);
+  const surf = [];
+  for (let lap = 0; lap < 3; lap++) {
+    const row = []; for (let d = 0; d <= 180; d++) { const km = lap === 0 ? d * KM_DEG : lap === 1 ? CIRC - d * KM_DEG : CIRC + d * KM_DEG; row.push(km / SURF_V); }
+    surf.push(row);
+  }
+  curve(surf[0], '#2f9ac4', [6, 4], 1.5, 'Surface');
+  if (W.giant) { curve(surf[1], 'rgba(47,154,196,0.8)', [6, 4], 1.3, 'Lap 2', 0, 180, true); curve(surf[2], 'rgba(47,154,196,0.65)', [6, 4], 1.2, 'Lap 3'); }
+  // cursor
+  const xc = X(W.t);
+  g.strokeStyle = 'rgba(255,240,220,0.85)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(xc, pad.t); g.lineTo(xc, pad.t + ph); g.stroke();
+  // hover
+  if (W.recHover && W.rec) {
+    const s = W.rec.stations[W.recHover.i];
+    const y0 = Y(s.dist);
+    g.strokeStyle = 'rgba(255,210,122,0.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(pad.l, y0); g.lineTo(w - pad.r, y0); g.stroke();
+  }
+}
+function recHover(e) {
+  if (!W.rec) { hideTip(); return; }
+  const cv = $('recordCanvas'), r = cv.getBoundingClientRect(), y = e.clientY - r.top, h = r.height;
+  const pad = { t: 8, b: 34 }, d = (y - pad.t) / (h - pad.t - pad.b) * 180;
+  let bi = -1, bd = 3.5;
+  W.rec.stations.forEach((s, i) => { const dd = Math.abs(s.dist - d); if (dd < bd) { bd = dd; bi = i; } });
+  if (bi < 0) { W.recHover = null; hideTip(); W.dirty = true; return; }
+  W.recHover = { i: bi }; W.dirty = true;
+  const s = W.rec.stations[bi], st = W.stations[bi];
+  const tp = st.tp != null ? `P arrives ${Math.floor(st.tp / 60)}:${String(Math.round(st.tp % 60)).padStart(2, '0')}` : 'no direct P (shadow zone)';
+  showTip(e.clientX, e.clientY - 6, `<b>${esc(s.net)}.${esc(s.sta)}</b> <small>· ${nf1.format(s.dist)}° · ${fmt(s.dist * KM_DEG)} km away · ${tp}</small>`);
+}
+
+/* =========================================================================
+   UI wiring
+   ========================================================================= */
+let toastTimer = 0;
+function showToast(msg) {
+  let el = $('toast');
+  if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'panel'; $('ui').appendChild(el); }
+  el.textContent = msg; el.hidden = false; el.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.classList.remove('on'); setTimeout(() => { el.hidden = true; }, 400); }, 7000);
+}
+/* Jump-to chips are rebuilt from the data on every load, so they stay valid as quakes roll out of the year. */
+const GIANT_CHIPS = [['Chile 1960', 1960], ['Tōhoku 2011', 2011], ['Sumatra 2004', 2004]];
+const EXTRA_CHIPS = [['Venezuela M7.5', 'us6000t7zp']];
+function famousChips() {
+  const out = [], seen = new Set();
+  const add = (label, key) => { if (!seen.has(key)) { seen.add(key); out.push([label, key]); } };
+  const country = (p) => { const parts = shortPlace(p).split(','); return parts[parts.length - 1].trim(); };
+  const big = DATA.year.filter((q) => q.mag >= 7).sort((a, b) => b.mag - a.mag || b.time - a.time);
+  const withW = big.filter((q) => DATA.waves.has(q.id));
+  for (const q of (withW.length >= 4 ? withW : big).slice(0, 4)) add(`${country(q.place)} M${q.mag.toFixed(1)}`, q.id);
+  for (const [label, id] of EXTRA_CHIPS) if (DATA.year.some((q) => q.id === id)) add(label, id);
+  const deep = DATA.year.filter((q) => q.mag >= 6.5).sort((a, b) => b.depth - a.depth)[0];
+  if (deep && deep.depth >= 300) add(`Deepest M${deep.mag.toFixed(1)} · ${fmt(deep.depth)} km`, deep.id);
+  for (const [label, y] of GIANT_CHIPS) { const q = DATA.giants.find((x) => yearLabel(x.time) === y); if (q) add(label, q.id); }
+  const rank = { RED: 3, ORANGE: 2, YELLOW: 1 };
+  const alerted = DATA.volcList.filter((v) => v.alert).sort((a, b) => (rank[b.alert[0]] || 0) - (rank[a.alert[0]] || 0)).slice(0, 2);
+  for (const v of (alerted.length ? alerted : DATA.volcList.filter((x) => x.num === 332010))) add(v.name, 'v:' + v.num);
+  return out;
+}
+function buildUI() {
+  const fq = new Date(DATA.fetched);
+  $('asof').innerHTML = `USGS data as of <b>${timeFmt.format(fq)}</b>`;
+  // depth key gradient
+  $('depthBar').style.background = `linear-gradient(90deg, ${[0, 35, 70, 100, 150, 300, 500, 700].map((d) => `${depthHex(d)} ${Math.round(Math.sqrt(d / 700) * 100)}%`).join(', ')})`;
+  document.querySelector('.depthkey .lbls').innerHTML = [0, 100, 300, 700].map((d) => `<span style="position:absolute; left:${Math.sqrt(d / 700) * 100}%; transform:translateX(${d === 0 ? 0 : d === 700 ? -100 : -50}%)">${d}${d === 700 ? ' km' : ''}</span>`).join('');
+  Object.assign(document.querySelector('.depthkey .lbls').style, { position: 'relative', height: '16px', display: 'block' });
+  // famous chips
+  $('famous').innerHTML = famousChips().map(([l, k]) => `<button type="button" data-k="${esc(k)}">${esc(l)}</button>`).join('');
+  $('famous').onclick = (e) => {
+    const k = e.target.closest('button')?.dataset.k; if (!k) return;
+    if (k.startsWith('v:')) { const v = DATA.volcList.find((x) => String(x.num) === k.slice(2)); if (v) { toGlobe(); if (!S.layers.volc) toggleLayer('volc'); openVolcano(v); } return; }
+    const q = quakeById(k);
+    if (!q) return;
+    toGlobe();
+    if (q.kind === 'giant' && S.view !== 'giants') setView('giants');
+    if (q.kind === 'year' && (S.view === 'giants' || !inWindow(q))) setView('year');
+    if (q.mag < S.magMin) { S.magMin = 4.5; $('magMin').value = 4.5; updateMagLabel(); applyFilters(); }
+    openQuake(q);
+    if (narrow()) $('filters').classList.remove('open');
+  };
+  $('viewSeg').onclick = (e) => { const v = e.target.closest('button')?.dataset.view; if (v && S.mode !== 'intro') { if (S.mode === 'replay' || S.mode === 'wave') toGlobe(); setView(v); } };
+  $('listSeg').onclick = (e) => { const s = e.target.closest('button')?.dataset.sort; if (!s) return; S.listSort = s; document.querySelectorAll('#listSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sort === s))); renderList(visibleList()); };
+  $('list').onclick = (e) => { const b = e.target.closest('button[data-id]'); if (!b) return; const q = quakeById(b.dataset.id); if (q) { if (S.mode === 'slice') exitSlice(); openQuake(q); if (narrow()) $('side').classList.remove('open'); } };
+  $('magMin').oninput = () => { S.magMin = Number($('magMin').value); updateMagLabel(); applyFilters(); };
+  $('depthToggles').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; const k = Number(b.dataset.band); S.depthOn[k] = !S.depthOn[k]; b.setAttribute('aria-pressed', String(S.depthOn[k])); applyFilters(); };
+  $('tgPlates').onclick = () => toggleLayer('plates');
+  $('tgSpeeds').onclick = () => toggleLayer('speeds');
+  $('tgVolc').onclick = () => toggleLayer('volc');
+  $('filtersCollapse').onclick = () => { $('filters').classList.toggle('collapsed'); };
+  $('filtersToggle').onclick = () => { $('side').classList.remove('open'); $('filters').classList.toggle('open'); };
+  $('filtersClose').onclick = () => $('filters').classList.remove('open');
+  $('sideToggle').onclick = () => { $('filters').classList.remove('open'); $('side').classList.toggle('open'); };
+  $('sideClose').onclick = () => $('side').classList.remove('open');
+  $('collapseBtn').onclick = () => { const b = $('bottom'); b.classList.toggle('collapsed'); $('collapseBtn').textContent = b.classList.contains('collapsed') ? 'Show stats' : 'Hide stats'; setTimeout(() => updateStats(visibleList()), 0); };
+  $('sliceBtn').onclick = () => { if (S.mode === 'slice') exitSlice(); else if (S.mode === 'globe') enterSlice(S.sel && S.selKind === 'quake' ? S.sel.dir : null); else if (S.mode === 'replay') { endReplay(); enterSlice(null); } };
+  $('sliceExit').onclick = () => { if (S.mode === 'wave') exitWave(); else exitSlice(); };
+  $('turnRange').oninput = () => setTurn(Number($('turnRange').value));
+  $('replayBtn').onclick = () => { if (S.mode === 'intro') return; if (S.mode === 'wave') toGlobe(); startTimeline('replay'); };
+  $('introSkip').onclick = (e) => { e.stopPropagation(); skipIntro(); };
+  $('intro').onclick = skipIntro;
+  addEventListener('keydown', (e) => {
+    if (S.mode === 'intro') { skipIntro(); return; }
+    if (e.key === 'Escape') { if (!$('about').hidden) $('about').hidden = true; else if (S.mode === 'wave') exitWave(); else if (S.mode === 'replay') endReplay(); else if (S.mode === 'slice') exitSlice(); else closeCard(); }
+    if (e.key === ' ' && (S.mode === 'wave' || S.mode === 'replay') && e.target === document.body) { e.preventDefault(); (S.mode === 'wave' ? $('wPlay') : $('rPlay')).click(); }
+  });
+  $('rPlay').onclick = () => { if (TL.t >= 1) timelineSeek(0); TL.playing = !TL.playing; $('rPlay').textContent = TL.playing ? 'Pause' : 'Play'; controls.autoRotate = TL.playing; };
+  $('rRestart').onclick = () => { timelineSeek(0); TL.playing = true; $('rPlay').textContent = 'Pause'; };
+  $('rClose').onclick = endReplay;
+  $('rNote').onclick = (e) => { const b = e.target.closest('button[data-id]'); if (b) { const q = quakeById(b.dataset.id); if (q) startWave(q); } };
+  $('energyCanvas').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); const t = clamp((e.clientX - r.left - 46) / (r.width - 56), 0, 1); timelineSeek(t); };
+  $('wPlay').onclick = () => { if (W.t >= W.T) W.t = 0; W.playing = !W.playing; $('wPlay').textContent = W.playing ? 'Pause' : 'Play'; W.dirty = true; };
+  $('wRestart').onclick = () => { W.t = 0; W.playing = true; $('wPlay').textContent = 'Pause'; W.dirty = true; };
+  $('wExit').onclick = exitWave;
+  $('wSpeed').onclick = (e) => { const s = e.target.closest('button')?.dataset.speed; if (!s) return; W.speed = Number(s); document.querySelectorAll('#wSpeed button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.speed === s))); };
+  $('scrub').oninput = () => { W.t = Number($('scrub').value); W.dirty = true; };
+  $('gain').oninput = () => { W.dirty = true; };
+  $('recordCanvas').addEventListener('pointermove', recHover);
+  $('recordCanvas').addEventListener('pointerleave', () => { W.recHover = null; hideTip(); W.dirty = true; });
+  $('recordCanvas').addEventListener('click', (e) => { const r = e.currentTarget.getBoundingClientRect(); W.t = clamp((e.clientX - r.left - 40) / (r.width - 74), 0, 1) * W.T; W.dirty = true; });
+  for (const id of ['magCanvas', 'depthCanvas', 'shareCanvas']) { $(id).addEventListener('pointermove', chartHover); $(id).addEventListener('pointerleave', hideTip); }
+  $('aboutBtn').onclick = () => { $('about').hidden = !$('about').hidden; };
+  $('aboutClose').onclick = () => { $('about').hidden = true; };
+  $('aboutBody').innerHTML = aboutHTML();
+  setupSearch();
+  // globe pointer
+  const el = renderer.domElement;
+  let down = null;
+  el.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; if (S.mode === 'replay' || S.mode === 'intro') controls.autoRotate = false; });
+  el.addEventListener('pointerup', (e) => {
+    if (!down) return; const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null;
+    if (moved > 6 || S.mode === 'intro') return;
+    const h = pick(e.clientX, e.clientY);
+    if (!h) { if (S.mode !== 'wave') closeCard(); return; }
+    if (h.kind === 'quake') openQuake(h.q, S.mode === 'globe');
+    else if (h.kind === 'volcano') openVolcano(h.v);
+  });
+  let hoverRaf = 0;
+  el.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || S.mode === 'intro' || S.mode === 'wave') return;
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      const h = pick(e.clientX, e.clientY);
+      const idx = h && h.kind === 'quake' ? h.q.i : -1;
+      quakePts.material.uniforms.uHover.value = h && h.kind === 'quake' && h.q.kind === 'year' ? idx : -1;
+      giantPts.material.uniforms.uHover.value = h && h.kind === 'quake' && h.q.kind === 'giant' ? idx : -1;
+      el.style.cursor = h ? 'pointer' : '';
+      if (h) showTip(e.clientX, e.clientY, tipFor(h)); else hideTip();
+    });
+  });
+  el.addEventListener('pointerleave', hideTip);
+  updateMagLabel();
+  applyFilters();
+}
+function toGlobe() {
+  if (S.mode === 'replay') endReplay();
+  else if (S.mode === 'wave') { W.on = false; W.ready = false; globe.material.uniforms.uWaveOn.value = 0; if (W.staPts) { earth.remove(W.staPts); W.staPts = null; } setMode('globe'); earth.quaternion.identity(); updateLocalN(); paintPlates(); }
+  else if (S.mode === 'slice') { setMode('globe'); earth.quaternion.identity(); updateLocalN(); paintPlates(); }
+  controls.target.set(0, 0, 0); controls.minDistance = 1.28;
+}
+function skipIntro() { if (S.mode === 'intro' && TL.on) { TL.t = 1; advanceTimeline(true); finishIntro(false); } }
+function updateMagLabel() { $('magVal').textContent = `${S.magMin.toFixed(1)} and up`; }
+function toggleLayer(k) {
+  S.layers[k] = !S.layers[k];
+  ({ plates: $('tgPlates'), speeds: $('tgSpeeds'), volc: $('tgVolc') })[k].setAttribute('aria-pressed', String(S.layers[k]));
+  if (k === 'plates') { $('plateLegend').style.display = S.layers.plates ? '' : 'none'; paintPlates(); }
+  if (k === 'volc') volcPts.visible = S.layers.volc && S.mode !== 'wave';
+}
+function placeSearch() {
+  const w = $('searchWrap'), side = document.querySelector('#side header');
+  if (narrow() && w.parentElement !== side) side.appendChild(w);
+  if (!narrow() && w.parentElement === side) $('topbar').insertBefore(w, $('replayBtn'));
+}
+function setupSearch() {
+  placeSearch(); addEventListener('resize', placeSearch);
+  const inp = $('search'), res = $('results');
+  let items = [], sel = -1;
+  const run = () => {
+    const s = inp.value.trim().toLowerCase();
+    if (s.length < 2) { res.hidden = true; return; }
+    const qs = [...DATA.year, ...DATA.giants].filter((q) => q.place.toLowerCase().includes(s)).sort((a, b) => b.mag - a.mag).slice(0, 8).map((q) => ({ kind: 'quake', q }));
+    const vs = DATA.volcList.filter((v) => v.name.toLowerCase().includes(s) || v.country.toLowerCase() === s).slice(0, 5).map((v) => ({ kind: 'volcano', v }));
+    items = [...vs, ...qs]; sel = -1;
+    res.innerHTML = items.length ? items.map((it, i) => it.kind === 'quake'
+      ? `<li role="option" data-i="${i}"><span class="nm">${esc(it.q.kind === 'giant' ? giantName(it.q.place) : shortPlace(it.q.place))}<small>${it.q.kind === 'giant' ? yearLabel(it.q.time) : ago(it.q.time, S.endMs)}</small></span><span class="magchip ${magClass(it.q.mag)}">M${it.q.mag.toFixed(1)}</span></li>`
+      : `<li role="option" data-i="${i}"><span class="nm">${esc(it.v.name)}<small>volcano · ${esc(it.v.country)}</small></span><span class="magchip">▲</span></li>`).join('') : '<li class="empty">No matches in the past year, the giants or the volcano list.</li>';
+    res.hidden = false;
+  };
+  const choose = (it) => {
+    res.hidden = true; inp.blur();
+    if (S.mode === 'intro') return;
+    toGlobe();
+    if (it.kind === 'volcano') { if (!S.layers.volc) toggleLayer('volc'); openVolcano(it.v); return; }
+    const q = it.q;
+    if (q.kind === 'giant' && S.view !== 'giants') setView('giants');
+    if (q.kind === 'year' && (S.view === 'giants' || !inWindow(q))) setView('year');
+    if (q.mag < S.magMin) { S.magMin = 4.5; $('magMin').value = 4.5; updateMagLabel(); }
+    if (!S.depthOn[depthBand(q.depth)]) { S.depthOn[depthBand(q.depth)] = true; document.querySelector(`#depthToggles [data-band="${depthBand(q.depth)}"]`).setAttribute('aria-pressed', 'true'); }
+    applyFilters(); openQuake(q);
+  };
+  inp.oninput = run; inp.onfocus = run;
+  inp.onkeydown = (e) => {
+    if (res.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = clamp(sel + (e.key === 'ArrowDown' ? 1 : -1), 0, items.length - 1); res.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', String(i === sel))); }
+    if (e.key === 'Enter' && items[Math.max(0, sel)]) choose(items[Math.max(0, sel)]);
+    if (e.key === 'Escape') res.hidden = true;
+  };
+  res.onclick = (e) => { const li = e.target.closest('li[data-i]'); if (li) choose(items[Number(li.dataset.i)]); };
+  document.addEventListener('pointerdown', (e) => { if (!$('searchWrap').contains(e.target)) res.hidden = true; });
+}
+function aboutHTML() {
+  const fq = timeFmt.format(new Date(DATA.fetched));
+  return `
+  <p>Every number on this page comes from public scientific data. The quake catalog was last pulled ${esc(fq)} and refreshes once a day, so the newest hours may be missing. This is not a warning or alert system.</p>
+  <h3>Earthquakes</h3>
+  <ul>
+    <li>USGS ANSS Comprehensive Catalog (ComCat): every magnitude 4.5+ earthquake in the 365 days before the date above (${fmt(DATA.year.length)} quakes), plus every M8.5+ since 1900 (${DATA.giants.length}).</li>
+    <li>Why 4.5 and up: smaller quakes get recorded far more completely where sensors are dense. ${DATA.context && DATA.context.all ? `Of the ${fmt(DATA.context.all)} quakes of all sizes USGS listed in the past year, ${Math.round(DATA.context.us / DATA.context.all * 100)}% sat in rough boxes around the lower 48 states and Alaska.` : 'Most of the quakes of all sizes that USGS lists sit in rough boxes around the lower 48 states and Alaska.'} Showing them all would make the US look like the shakiest place on Earth.</li>
+    <li>Locations, depths and magnitudes of quakes before the 1960s are historical estimates. USGS also revises recent magnitudes.</li>
+    <li>Preliminary entries from tsunami warning centers that USGS never merged into its own solution are left out. In this catalog they duplicate real quakes, sometimes with the wrong date.</li>
+    <li>Energy is estimated from magnitude with USGS's formula, log E = 5.24 + 1.44 M (E in joules), and converted at 4.184 billion joules per ton of TNT. USGS reports several magnitude types (mostly mb and Mww here), so energy totals are approximate.</li>
+    <li>"USGS impact alert" is the PAGER rating, USGS's rapid estimate of deaths and economic losses.</li>
+  </ul>
+  <h3>Plates, volcanoes and the seafloor</h3>
+  <ul>
+    <li>Plate boundaries and speeds: Bird (2003), PB2002 model. Speeds are how fast the two plates move relative to each other at that point, in millimetres per year.</li>
+    <li>Volcanoes: Smithsonian Global Volcanism Program, Volcanoes of the World, all ${fmt(DATA.volcList.length)} volcanoes active in roughly the last 12,000 years. Bright triangles erupted in 1900 or later. Alert levels are from the USGS Volcano Hazards Program, cover US volcanoes only, and were checked ${esc(timeFmt.format(new Date(DATA.alertsFetched)))}.</li>
+    <li>Relief: NOAA ETOPO1 land and seafloor elevations, sampled every 2 arc-minutes and shaded for this page.</li>
+  </ul>
+  <h3>Wave race</h3>
+  <ul>
+    <li>Earth layers and wave speeds: the iasp91 reference model. Arrival times come from TauP (ObsPy). The wavefronts in the slice are ray-traced in your browser through the same model.</li>
+    <li>Real seismograms: EarthScope (formerly IRIS) data services, vertical long-period channels from global networks, filtered to periods of 10 to 125 seconds and scaled per station, for the ${DATA.waves.size} quakes listed with "Real seismograms".</li>
+    <li>The model Earth is perfectly layered, while the real one is lumpy, so real arrivals land a few seconds off the curves. Surface waves are drawn at a single typical speed, 3.7 km/s. Real ones travel at a range of speeds depending on their period, so they arrive as a spread-out wave train.</li>
+  </ul>`;
+}
+
+/* ---------------- frame loop ---------------- */
+let last = performance.now(), clock0 = performance.now();
+let layoutTick = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if ((layoutTick++ & 15) === 0) {
+    const rs = document.documentElement.style, th = $('topbar').offsetHeight, bh = $('bottom').offsetHeight;
+    if (th && rs.getPropertyValue('--top-h') !== `${th}px`) rs.setProperty('--top-h', `${th}px`);
+    if (bh && !narrow() && rs.getPropertyValue('--bottom-h') !== `${bh}px`) rs.setProperty('--bottom-h', `${bh}px`);
+  }
+  for (let k = tweens.length - 1; k >= 0; k--) {
+    const tw = tweens[k], e = clamp((now - tw.t0) / tw.dur, 0, 1);
+    tw.fn(ease(e));
+    if (e >= 1) { tweens.splice(k, 1); if (tw.done) tw.done(); }
+  }
+  applyViewOffset(tweens.length === 0 && now - clock0 < 400);
+  if (controls.enabled) controls.update();
+  // key light from upper-left of the view
+  lightDir.copy(camera.position).normalize().multiplyScalar(0.8).add(new THREE.Vector3(-0.45, 0.55, 0).applyQuaternion(camera.quaternion)).normalize();
+  const scale = clamp(2.9 / camera.position.length(), 0.75, 1.9) * (S.mode === 'slice' ? clamp(0.9 / camera.position.distanceTo(controls.target), 0.8, 1.6) : 1);
+  for (const p of [quakePts, giantPts]) { p.material.uniforms.uScale.value = scale; p.material.uniforms.uClock.value = (now - clock0) / 1000; }
+  volcPts.material.uniforms.uScale.value = scale;
+  if (W.staPts) W.staPts.material.uniforms.uScale.value = scale;
+  tickTimeline(dt);
+  tickWave(dt);
+  updateCallouts(now);
+  placeCard();
+  updateSpeedTags();
+  updateCapLabels();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+function updateSpeedTags() {
+  const on = S.layers.speeds && S.layers.plates && S.mode === 'globe';
+  const placed = [];
+  for (const L of plateObjs.labels) {
+    if (!on) { if (!L.el.hidden) L.el.hidden = true; continue; }
+    const w = worldOf(L.dir); const facing = w.dot(camera.position.clone().sub(w)) > 0.12;
+    if (!facing) { L.el.hidden = true; continue; }
+    w.project(camera);
+    const x = (w.x + 1) / 2 * innerWidth, y = (1 - w.y) / 2 * innerHeight;
+    if (placed.some(([px, py]) => Math.abs(px - x) < 92 && Math.abs(py - y) < 26)) { L.el.hidden = true; continue; }
+    placed.push([x, y]);
+    L.el.hidden = false; L.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+  }
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  if (plateObjs) [...plateObjs.lines, plateObjs.glow].forEach((o) => o.line.material.resolution.set(innerWidth, innerHeight));
+  if (DATA) { updateStats(visibleList()); if (TL.on && TL.kind === 'replay') drawEnergy(); W.dirty = true; W.recKey = ''; }
+});
+
+boot().catch((e) => {
+  console.error(e);
+  $('progText').textContent = `Something went wrong while loading: ${e.message}. Reload the page to try again.`;
+});
+
+</script>
+</body>
+</html>
